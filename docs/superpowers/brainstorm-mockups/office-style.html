@@ -1,0 +1,90 @@
+<h2>Gaya visual mana yang pas buat "office room" lo?</h2>
+<p class="subtitle">Ketiganya nunjukin isi yang sama: 2 ruangan project (Teraflow, Voidlight), tiap ruangan ada 3 agent + status + progress. Yang beda cuma bahasa visualnya. Klik salah satu, atau jawab lewat terminal.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="blueprint" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:190px;display:flex;align-items:center;justify-content:center;">
+      <div style="display:flex;gap:12px;width:100%;max-width:320px;">
+        <div style="flex:1.2;border:3px solid #8ea3c0;background:#141d31;padding:10px;border-radius:2px;">
+          <div style="font-size:10px;letter-spacing:1.5px;color:#aab8d0;margin-bottom:8px;">TEAM TERAFLOW</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="width:34px;height:26px;background:#22314f;border:1px solid #3d4f76;border-radius:3px;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></span></div>
+            <div style="width:34px;height:26px;background:#22314f;border:1px solid #3d4f76;border-radius:3px;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></span></div>
+            <div style="width:34px;height:26px;background:#22314f;border:1px solid #3d4f76;border-radius:3px;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:#eab308;"></span></div>
+          </div>
+          <div style="margin-top:10px;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:62%;height:100%;background:#22c55e;"></div></div>
+          <div style="font-size:9px;color:#7d8db0;margin-top:4px;">62% &middot; 128k tok</div>
+        </div>
+        <div style="flex:1;border:3px solid #5d7096;background:#141d31;padding:10px;border-radius:2px;">
+          <div style="font-size:10px;letter-spacing:1.5px;color:#aab8d0;margin-bottom:8px;">TEAM VOIDLIGHT</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="width:34px;height:26px;background:#22314f;border:1px solid #3d4f76;border-radius:3px;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:#64748b;"></span></div>
+            <div style="width:34px;height:26px;background:#22314f;border:1px solid #3d4f76;border-radius:3px;display:flex;align-items:center;justify-content:center;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;"></span></div>
+          </div>
+          <div style="margin-top:10px;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:25%;height:100%;background:#38bdf8;"></div></div>
+          <div style="font-size:9px;color:#7d8db0;margin-top:4px;">25% &middot; 51k tok</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Blueprint Floor Plan</h3>
+      <p>Top-down 2D murni, tembok tebal, estetika blueprint. Paling literal sama "liat denah kantor dari atas". Tenang, padat informasi, gampang di-scaling kalau project makin banyak.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="isometric" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:190px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+      <div style="display:flex;gap:40px;transform:rotateX(52deg) rotateZ(-42deg);transform-style:preserve-3d;margin:10px 0;">
+        <div style="width:130px;height:110px;background:#1c2a47;border:3px solid #94a3b8;position:relative;box-shadow:8px 8px 0 #0e1626;">
+          <div style="position:absolute;top:6px;left:8px;font-size:9px;letter-spacing:1px;color:#aab8d0;transform:rotateZ(42deg);">TERAFLOW</div>
+          <div style="position:absolute;top:40px;left:18px;width:16px;height:16px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;"></div>
+          <div style="position:absolute;top:60px;left:52px;width:16px;height:16px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;"></div>
+          <div style="position:absolute;top:36px;left:84px;width:16px;height:16px;border-radius:50%;background:#eab308;box-shadow:0 0 10px #eab308;"></div>
+        </div>
+        <div style="width:130px;height:110px;background:#1c2a47;border:3px solid #64748b;position:relative;box-shadow:8px 8px 0 #0e1626;">
+          <div style="position:absolute;top:6px;left:8px;font-size:9px;letter-spacing:1px;color:#aab8d0;transform:rotateZ(42deg);">VOIDLIGHT</div>
+          <div style="position:absolute;top:44px;left:30px;width:16px;height:16px;border-radius:50%;background:#64748b;"></div>
+          <div style="position:absolute;top:64px;left:70px;width:16px;height:16px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Isometric Game View</h3>
+      <p>Ruangan dengan kedalaman, vibe gim manajemen (The Sims / game studio tycoon). Paling playful dan imersif. Trade-off: lebih boros effort rendering, dan makin banyak ruangan makin sesak.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="soft-rooms" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:190px;display:flex;align-items:center;justify-content:center;">
+      <div style="display:flex;gap:12px;width:100%;max-width:320px;">
+        <div style="flex:1.2;background:linear-gradient(160deg,#16233f,#101a30);border:1px solid #2c3d63;border-radius:14px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;"><span style="width:8px;height:8px;border-radius:2px;background:#22c55e;"></span><span style="font-size:11px;color:#dbe4f5;font-weight:600;">Team Teraflow</span></div>
+          <div style="display:flex;gap:6px;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#22314f;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aab8d0;">R1</div>
+            <div style="width:30px;height:30px;border-radius:50%;background:#22314f;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aab8d0;">R2</div>
+            <div style="width:30px;height:30px;border-radius:50%;background:#22314f;border:2px solid #eab308;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aab8d0;">R3</div>
+          </div>
+          <div style="margin-top:10px;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:62%;height:100%;background:#22c55e;"></div></div>
+        </div>
+        <div style="flex:1;background:linear-gradient(160deg,#16233f,#101a30);border:1px solid #2c3d63;border-radius:14px;padding:12px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;"><span style="width:8px;height:8px;border-radius:2px;background:#38bdf8;"></span><span style="font-size:11px;color:#dbe4f5;font-weight:600;">Team Voidlight</span></div>
+          <div style="display:flex;gap:6px;">
+            <div style="width:30px;height:30px;border-radius:50%;background:#22314f;border:2px solid #64748b;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aab8d0;">V1</div>
+            <div style="width:30px;height:30px;border-radius:50%;background:#22314f;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:10px;color:#aab8d0;">V2</div>
+          </div>
+          <div style="margin-top:10px;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:25%;height:100%;background:#38bdf8;"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Soft Rooms (Dashboard Native)</h3>
+      <p>Metapor ruangan tetap ada, tapi dibikin dalam bahasa desain dashboard modern: kartu membulat, avatar agent, status ring. Paling enak dilihat berjam-jam, paling gampang diimplementasi. Trade-off: rasa "denah kantor"-nya paling tipis.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <p class="subtitle">Nama agent (R1, R2, V1, dst) dan angka di mockup ini placeholder ya, nanti diisi data asli dari db ZCode.</p>
+</div>

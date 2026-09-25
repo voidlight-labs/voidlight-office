@@ -1,0 +1,81 @@
+<h2>Susunan halaman: gimana office view hidung rukun sama info lainnya?</h2>
+<p class="subtitle">Lo milih keempat jenis info (status live, progress & budget, usage, activity feed). Pertanyaannya: di satu layar monitor kedua, semuanya muat gimana? Konteks: dashboard ini kelihatan sekilas dari jauh, bukan dibaca sambil duduk deket layar.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="mission-control" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#0b1220;min-height:200px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:340px;border:1px solid #2c3d63;border-radius:8px;overflow:hidden;font-size:9px;color:#7d8db0;">
+        <div style="background:#141d31;padding:6px 10px;display:flex;justify-content:space-between;border-bottom:1px solid #2c3d63;">
+          <span style="color:#dbe4f5;font-weight:600;">ZCODE OFFICE</span><span>1.2M tok today &middot; GLM 5.3</span>
+        </div>
+        <div style="display:flex;">
+          <div style="flex:2;padding:10px;display:flex;flex-wrap:wrap;gap:8px;align-content:flex-start;">
+            <div style="width:45%;height:52px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM<br><span style="color:#22c55e;">&bull; &bull; &bull;</span></div>
+            <div style="width:45%;height:52px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM<br><span style="color:#64748b;">&bull; &bull;</span></div>
+            <div style="width:45%;height:52px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM<br><span style="color:#eab308;">&bull;</span></div>
+            <div style="width:45%;height:52px;background:#16233f;border:1px dashed #2c3d63;border-radius:8px;padding:5px;color:#475569;">+ room</div>
+          </div>
+          <div style="flex:1;border-left:1px solid #2c3d63;padding:8px;background:#0e1626;">
+            ACTIVITY<br><br>
+            <span style="color:#22c55e;">&#9654;</span> Bash 2s<br>
+            <span style="color:#22c55e;">&#9654;</span> Read<br>
+            <span style="color:#eab308;">&#9654;</span> Edit...<br>
+            <span style="color:#22c55e;">&#9654;</span> Bash...
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Mission Control satu layar (Recommended)</h3>
+      <p>Office rooms jadi panggung utama (kiri, besar), activity feed jadi kolah kanan yang nge-stream live, usage global jadi strip tipis di atas. Nol klik buat liat semuanya. Paling cocok buat monitor kedua yang cuma dilirik.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="stage-tabs" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#0b1220;min-height:200px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:340px;border:1px solid #2c3d63;border-radius:8px;overflow:hidden;font-size:9px;color:#7d8db0;">
+        <div style="padding:10px;display:flex;gap:8px;">
+          <div style="flex:1;height:44px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM</div>
+          <div style="flex:1;height:44px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM</div>
+          <div style="flex:1;height:44px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM</div>
+        </div>
+        <div style="display:flex;border-top:1px solid #2c3d63;border-bottom:1px solid #2c3d63;background:#141d31;">
+          <span style="padding:5px 10px;color:#dbe4f5;border-bottom:2px solid #38bdf8;">Progress</span>
+          <span style="padding:5px 10px;">Usage</span>
+          <span style="padding:5px 10px;">Activity</span>
+        </div>
+        <div style="padding:14px;text-align:center;color:#475569;">panel konten tab aktif</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Rooms di atas, tab di bawah</h3>
+      <p>Office view tetap jadi hero, tapi detail (progress per task, usage breakdown, activity) dipisah per tab. Tiap ruangan dapat ruang lebih lega. Trade-off: info lain butuh klik/scan turun, nggak sekali lirik.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="drill-down" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:14px;background:#0b1220;min-height:200px;display:flex;align-items:center;justify-content:center;position:relative;">
+      <div style="width:82%;border:1px solid #2c3d63;border-radius:8px;overflow:hidden;font-size:9px;color:#7d8db0;">
+        <div style="padding:10px;display:flex;gap:8px;">
+          <div style="flex:1;height:56px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM</div>
+          <div style="flex:1;height:56px;background:#16233f;border:1px solid #38bdf8;border-radius:8px;padding:5px;">ROOM &#8592;</div>
+          <div style="flex:1;height:56px;background:#16233f;border:1px solid #2c3d63;border-radius:8px;padding:5px;">ROOM</div>
+        </div>
+        <div style="padding:8px;text-align:center;color:#475569;">penuh satu layar, bersih</div>
+      </div>
+      <div style="position:absolute;right:10px;top:16px;width:34%;height:78%;background:#141d31;border:1px solid #38bdf8;border-radius:8px;padding:8px;color:#aab8d0;font-size:8px;">
+        slide-over detail:<br><br>&bull; objective<br>&bull; progress<br>&bull; tokens<br>&bull; activity team ini
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Rooms full screen + drill-down klik</h3>
+      <p>Layar utama cuma berisi ruangan, sebersih mungkin. Klik satu ruangan buka panel slide-over berisi semua detail team itu. Global usage dikecilin jadi stat kecil di pojok. Paling clean, tapi activity & usage lintas team nggak keliatan sekali lirik.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <p class="subtitle">Rekomendasi gue: A. Karena use case lo "lirik dari jauh sambil kerja", informasi yang butuh klik itu praktisnya nggak akan pernah dilirik.</p>
+</div>

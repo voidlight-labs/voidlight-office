@@ -1,0 +1,96 @@
+<h2>Seberapa detail tiap agent di dalam ruangan?</h2>
+<p class="subtitle">Tiga tingkat kepadatan info, konteksnya sama: monitor kedua yang dilirik dari jauh. Semua mockup nunjukin satu ruangan (Team Teraflow, 3 agent) di gaya Soft Rooms yang udah lo pilih. Klik yang pas.</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="minimal" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:180px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:280px;background:linear-gradient(160deg,#16233f,#101a30);border:1px solid #2c3d63;border-radius:14px;padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:12px;color:#dbe4f5;font-weight:600;">Team Teraflow</span>
+          <span style="font-size:9px;color:#7d8db0;">62%</span>
+        </div>
+        <div style="display:flex;gap:14px;justify-content:center;">
+          <div style="width:44px;height:44px;border-radius:50%;border:3px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:12px;color:#dbe4f5;background:#22314f;">R1</div>
+          <div style="width:44px;height:44px;border-radius:50%;border:3px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:12px;color:#dbe4f5;background:#22314f;">R2</div>
+          <div style="width:44px;height:44px;border-radius:50%;border:3px solid #eab308;display:flex;align-items:center;justify-content:center;font-size:12px;color:#dbe4f5;background:#22314f;">R3</div>
+        </div>
+        <div style="margin-top:12px;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:62%;height:100%;background:#22c55e;"></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Minimal: ring status doang</h3>
+      <p>Agent = lingkaran dengan warna status (hijau kerja, kuning idle, abu selesai). Dilihat dari 2 meter pun masih kebaca. Detail lain cuma muncul pas hover/klik. Trade-off: "lagi ngapain?" nggak terjawab tanpa interaksi.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="standard" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:180px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:300px;background:linear-gradient(160deg,#16233f,#101a30);border:1px solid #2c3d63;border-radius:14px;padding:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <span style="font-size:12px;color:#dbe4f5;font-weight:600;">Team Teraflow</span>
+          <span style="font-size:9px;color:#7d8db0;">migrasi auth &middot; 62%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:50%;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#dbe4f5;background:#22314f;flex-shrink:0;">R1</div>
+            <div style="min-width:0;"><div style="font-size:10px;color:#dbe4f5;">R1 &middot; kerja</div><div style="font-size:9px;color:#7d8db0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Edit auth/middleware.ts</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:50%;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;font-size:9px;color:#dbe4f5;background:#22314f;flex-shrink:0;">R2</div>
+            <div style="min-width:0;"><div style="font-size:10px;color:#dbe4f5;">R2 &middot; kerja</div><div style="font-size:9px;color:#7d8db0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bash: npm test</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:28px;height:28px;border-radius:50%;border:2px solid #eab308;display:flex;align-items:center;justify-content:center;font-size:9px;color:#dbe4f5;background:#22314f;flex-shrink:0;">R3</div>
+            <div style="min-width:0;"><div style="font-size:10px;color:#dbe4f5;">R3 &middot; idle 4m</div><div style="font-size:9px;color:#7d8db0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">nunggu review R1</div></div>
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:6px;background:#22314f;border-radius:3px;overflow:hidden;"><div style="width:62%;height:100%;background:#22c55e;"></div></div>
+          <span style="font-size:9px;color:#7d8db0;">128k tok</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Standard: nama + aktivitas terakhir (Recommended)</h3>
+      <p>Agent jadi baris kecil: ring status, nama, dan satu baris "lagi ngapain" (tool/file terakhir). Header ruangan nunjukin objective + progress. Masih kebaca dari jauh, tapi pertanyaan "lagi ngapain sih?" kejawab tanpa klik.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="rich" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px;background:#0b1220;min-height:180px;display:flex;align-items:center;justify-content:center;">
+      <div style="width:100%;max-width:320px;background:linear-gradient(160deg,#16233f,#101a30);border:1px solid #2c3d63;border-radius:14px;padding:14px;font-size:9px;color:#7d8db0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:12px;color:#dbe4f5;font-weight:600;">Team Teraflow</span>
+          <span>migrasi auth &middot; 62%</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:center;gap:8px;background:#0e1626;border-radius:8px;padding:6px 8px;">
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;color:#dbe4f5;flex-shrink:0;">R1</div>
+            <div style="flex:1;min-width:0;"><div style="color:#dbe4f5;">Edit auth/middleware.ts</div><div>GLM-5.3 &middot; 42k tok &middot; 12 tool calls</div></div>
+            <svg width="50" height="16"><polyline points="0,12 10,10 20,11 30,6 40,4 50,2" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:#0e1626;border-radius:8px;padding:6px 8px;">
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid #22c55e;display:flex;align-items:center;justify-content:center;color:#dbe4f5;flex-shrink:0;">R2</div>
+            <div style="flex:1;min-width:0;"><div style="color:#dbe4f5;">Bash: npm test</div><div>GLM-5.3 &middot; 61k tok &middot; 33 tool calls</div></div>
+            <svg width="50" height="16"><polyline points="0,14 10,12 20,8 30,9 40,5 50,3" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;background:#0e1626;border-radius:8px;padding:6px 8px;">
+            <div style="width:24px;height:24px;border-radius:50%;border:2px solid #eab308;display:flex;align-items:center;justify-content:center;color:#dbe4f5;flex-shrink:0;">R3</div>
+            <div style="flex:1;min-width:0;"><div style="color:#dbe4f5;">idle 4m</div><div>GLM-5.3 &middot; 25k tok &middot; 8 tool calls</div></div>
+            <svg width="50" height="16"><polyline points="0,4 10,5 20,8 30,10 40,13 50,14" fill="none" stroke="#eab308" stroke-width="1.5"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Rich: lengkap dengan sparkline & statistik</h3>
+      <p>Plus model, akumulasi token, jumlah tool calls, dan sparkline tren usage per agent. Kaya informasi, tapi mulai padat; dari jauh yang kebaca cuma warna, sisanya perlu didekatin. Juga paling berat buat di-render tiap refresh.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" style="margin-top:20px;">
+  <p class="subtitle">Rekomendasi gue: B. A terlalu bisu buat pertanyaan "lagi ngapain?", C kebanyakan buat yang cuma dilirik. B pas di tengah, dan detail ekstra (sparkline, statistik) bisa muncul di panel detail pas klik, jadi nggak hilang, cuma pindah tempat.</p>
+</div>
