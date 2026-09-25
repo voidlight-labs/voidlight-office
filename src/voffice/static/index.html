@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voidlight Office</title>
+<style>
+  :root {
+    --bg: #0b1220; --panel: #101a30; --panel-hi: #16233f; --inset: #0e1626;
+    --line: #2c3d63; --text: #dbe4f5; --muted: #7d8db0; --dim: #475569;
+    --green: #22c55e; --yellow: #eab308; --gray: #64748b; --red: #ef4444; --accent: #38bdf8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, "Segoe UI", sans-serif; }
+  .topbar { display: flex; align-items: center; gap: 18px; padding: 8px 16px; background: var(--panel-hi); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 700; letter-spacing: 2px; font-size: 12px; }
+  .stat { color: var(--muted); font-size: 12px; }
+  .stat b { color: var(--text); }
+  .age { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .banner { padding: 6px 16px; font-size: 12px; display: none; }
+  .banner.show { display: block; }
+  .banner.warn { background: #3a2f12; color: var(--yellow); }
+  .banner.err { background: #3a1418; color: var(--red); }
+  main { display: grid; grid-template-columns: 1fr 320px; gap: 14px; padding: 14px; }
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; align-content: start; }
+  .room { background: linear-gradient(160deg, var(--panel-hi), var(--panel)); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .room-head { cursor: pointer; display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .room-head:hover .room-name { color: var(--accent); }
+  .room-head.active .room-name { color: var(--accent); }
+  .room-name { font-weight: 600; }
+  .room-obj { color: var(--muted); font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .room-tok { color: var(--muted); font-size: 11px; flex-shrink: 0; }
+  .agents { display: flex; flex-direction: column; gap: 6px; }
+  .agent { display: flex; gap: 10px; align-items: center; background: var(--inset); border-radius: 8px; padding: 8px; cursor: pointer; }
+  .agent:hover { outline: 1px solid var(--line); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--gray); background: #22314f; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+  .a-main { flex: 1; min-width: 0; }
+  .a-tool { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .a-meta { color: var(--muted); font-size: 11px; }
+  .subs { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
+  .chip i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .bar { height: 6px; background: #22314f; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .bar > div { height: 100%; border-radius: 3px; }
+  .feed { background: var(--inset); border: 1px solid var(--line); border-radius: 14px; padding: 10px; max-height: calc(100vh - 90px); overflow: auto; align-self: start; }
+  .feed h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .feed-title { color: var(--accent); }
+  .feed-row { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+  .feed-row .who { color: var(--text); flex-shrink: 0; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; display: inline-block; }
+  .empty { color: var(--dim); padding: 60px 20px; text-align: center; }
+  .slideover { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; background: var(--panel-hi); border-left: 1px solid var(--accent); padding: 16px; overflow: auto; transform: translateX(105%); transition: transform .15s; z-index: 10; }
+  .slideover.open { transform: none; }
+  .slideover h2 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .slideover .close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+  .kv { color: var(--muted); font-size: 12px; margin: 3px 0; }
+  .kv b { color: var(--text); }
+  .list { margin-top: 14px; }
+  .list h4 { margin: 0 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .list-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="brand">VOIDLIGHT OFFICE</span>
+    <span class="stat" id="stat-working"></span>
+    <span class="stat" id="stat-tokens"></span>
+    <span class="age" id="age"></span>
+  </div>
+  <div class="banner" id="banner"></div>
+  <main>
+    <div class="rooms" id="rooms"></div>
+    <div class="feed"><h3 id="feed-title">Activity</h3><div id="feed-rows"></div></div>
+  </main>
+  <div class="slideover" id="slideover"></div>
+<script>
+"use strict";
+
+const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
+const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null };
+const $ = (id) => document.getElementById(id);
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+function fmtTokens(n) {
+  if (n == null) return "0";
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+  if (n >= 1000) return Math.round(n / 1000) + "k";
+  return String(n);
+}
+
+function fmtAge(ts) {
+  if (!ts) return "";
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return `diperbarui ${s}s lalu`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `diperbarui ${m}m lalu (data beku)`;
+  return `diperbarui ${Math.round(m / 60)}j lalu (data beku)`;
+}
+
+function sparkline(values, color) {
+  if (!values || values.length < 2) return "";
+  const w = 60, h = 18, max = Math.max(...values, 1);
+  const pts = values
+    .map((v, i) => `${(i / (values.length - 1) * w).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`)
+    .join(" ");
+  return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
+}
+
+function agentRow(a) {
+  const c = COLORS[a.status] || COLORS.quiet;
+  const tool = a.current_tool || a.title || "tanpa aktivitas";
+  const bar = a.target_budget > 0
+    ? `<div class="bar"><div style="width:${Math.min(100, Math.round(a.target_used / a.target_budget * 100))}%;background:${c}"></div></div>`
+    : "";
+  return `<div class="agent" onclick="openAgent('${esc(a.id)}')">
+    <div class="avatar" style="border-color:${c}">${esc(a.short_name)}</div>
+    <div class="a-main">
+      <div class="a-tool">${esc(tool)}</div>
+      <div class="a-meta">${esc(a.status_detail)} &middot; ${esc(a.model ?? "-")} &middot; ${fmtTokens(a.tokens)} tok &middot; ${a.tool_calls} tools</div>
+      ${bar}
+    </div>
+    ${sparkline(a.sparkline, c)}
+  </div>`;
+}
+
+function roomCard(r) {
+  const active = STATE.filterRoom === r.name ? "active" : "";
+  const agents = r.agents.map(agentRow).join("");
+  const chips = r.agents
+    .filter((a) => a.subagents.length)
+    .map((a) => `<span class="chip" onclick="openAgent('${esc(a.id)}')">${esc(a.short_name)} + ${a.subagents.length} sub
+      ${a.subagents.map((s) => `<i style="background:${COLORS[s.status] || COLORS.quiet}"></i>`).join("")}</span>`)
+    .join("");
+  return `<div class="room">
+    <div class="room-head ${active}" onclick="toggleFilter('${esc(r.name)}')">
+      <span class="room-name">${esc(r.name)}</span>
+      <span class="room-obj">${esc(r.objective ?? "")}</span>
+      <span class="room-tok">${fmtTokens(r.tokens)} tok</span>
+    </div>
+    <div class="agents">${agents || '<div class="kv">kosong</div>'}</div>
+    ${chips ? `<div class="subs">${chips}</div>` : ""}
+  </div>`;
+}
+
+function renderRooms() {
+  const rooms = STATE.snap?.rooms || [];
+  if (!rooms.length) {
+    const meta = STATE.snap?.meta;
+    const msg = meta && (meta.errors || []).length ? meta.errors.join("; ") : "belum ada aktivitas";
+    $("rooms").innerHTML = `<div class="empty">${esc(msg)}</div>`;
+    return;
+  }
+  const list = STATE.filterRoom ? rooms.filter((r) => r.name === STATE.filterRoom) : rooms;
+  $("rooms").innerHTML = list.map(roomCard).join("");
+}
+
+function renderFeed() {
+  $("feed-title").textContent = STATE.filterRoom ? `Activity: ${STATE.filterRoom}` : "Activity";
+  const rows = (STATE.snap?.activity || [])
+    .filter((x) => !STATE.filterRoom || x.room === STATE.filterRoom);
+  $("feed-rows").innerHTML = rows.map((x) => {
+    const c = STATUS_DOT[x.status] || "var(--gray)";
+    const d = x.duration_ms != null ? ` (${Math.round(x.duration_ms / 1000)}s)` : "";
+    return `<div class="feed-row"><span class="dot" style="background:${c}"></span>
+      <span class="who">${esc(x.room)}/${esc(x.agent)}</span><span>${esc(x.tool)}${d}</span></div>`;
+  }).join("") || '<div class="kv">belum ada aktivitas</div>';
+}
+
+function renderTopbar() {
+  const u = STATE.snap?.usage;
+  $("stat-working").innerHTML = u ? `<b>${u.working_count}</b> agent kerja` : "";
+  if (!u) { $("stat-tokens").innerHTML = ""; return; }
+  const models = Object.entries(u.per_model || {})
+    .map(([m, n]) => `${esc(m)} ${fmtTokens(n)}`).join(" &middot; ");
+  $("stat-tokens").innerHTML = `<b>${fmtTokens(u.today_total)}</b> tok today${models ? " &middot; " + models : ""}`;
+}
+
+function renderBanner() {
+  const b = $("banner");
+  const meta = STATE.snap?.meta;
+  if (meta && meta.partial) {
+    b.className = "banner warn show";
+    b.textContent = "data parsial: " + (meta.errors || []).join("; ");
+  } else if (!STATE.ok) {
+    b.className = "banner err show";
+    b.textContent = STATE.snap
+      ? "server tidak terjangkau, menampilkan data terakhir"
+      : "menunggu server /api/snapshot...";
+  } else {
+    b.className = "banner";
+  }
+}
+
+function findAgent(id) {
+  for (const r of STATE.snap?.rooms || []) {
+    for (const a of r.agents) {
+      if (a.id === id) return a;
+      const sub = a.subagents.find((s) => s.id === id);
+      if (sub) return sub;
+    }
+  }
+  return null;
+}
+
+function openAgent(id) { STATE.selected = id; renderSlideover(); }
+function closeAgent() { STATE.selected = null; renderSlideover(); }
+function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
+
+function renderSlideover() {
+  const el = $("slideover");
+  const a = STATE.selected && findAgent(STATE.selected);
+  if (!a) { el.className = "slideover"; el.innerHTML = ""; return; }
+  const c = COLORS[a.status] || COLORS.quiet;
+  const turns = (a.turns || []).slice().reverse().map((t) =>
+    `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span><span>${fmtTokens(t.output_tokens)} tok</span></div>`
+  ).join("");
+  const tools = (a.tools || []).slice().reverse().map((t) =>
+    `<div class="list-row"><span>${esc(t.tool)}</span><span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""}</span></div>`
+  ).join("");
+  const models = Object.entries(a.models || {})
+    .map(([m, n]) => `<div class="list-row"><span>${esc(m)}</span><span>${fmtTokens(n)} tok</span></div>`).join("");
+  const pct = a.target_budget > 0 ? Math.min(100, Math.round(a.target_used / a.target_budget * 100)) : null;
+  el.innerHTML = `
+    <button class="close" onclick="closeAgent()">x</button>
+    <h2><span class="avatar" style="border-color:${c}">${esc(a.short_name)}</span>${esc(a.title || a.short_name)}</h2>
+    <div class="kv">status: <b>${esc(a.status_detail)}</b></div>
+    <div class="kv">model: ${esc(a.model ?? "-")}</div>
+    <div class="kv">token total: <b>${fmtTokens(a.tokens)}</b> &middot; ${a.tool_calls} tool calls</div>
+    ${a.objective ? `<div class="kv">objective: ${esc(a.objective)}</div>` : ""}
+    ${pct != null ? `<div class="bar" style="max-width:220px"><div style="width:${pct}%;background:${c}"></div></div>
+      <div class="kv">${fmtTokens(a.target_used)} / ${fmtTokens(a.target_budget)} tok (${pct}%)</div>` : ""}
+    <div class="list"><h4>Turn terakhir</h4>${turns || '<div class="kv">kosong</div>'}</div>
+    <div class="list"><h4>Tool calls</h4>${tools || '<div class="kv">kosong</div>'}</div>
+    <div class="list"><h4>Per model</h4>${models || '<div class="kv">kosong</div>'}</div>`;
+  el.className = "slideover open";
+}
+
+function renderAge() { $("age").textContent = fmtAge(STATE.snap?.generated_at); }
+
+function render() {
+  renderTopbar();
+  renderBanner();
+  renderRooms();
+  renderFeed();
+  renderSlideover();
+  renderAge();
+}
+
+async function tick() {
+  try {
+    const res = await fetch("/api/snapshot");
+    if (!res.ok) throw new Error("http " + res.status);
+    STATE.snap = await res.json();
+    STATE.ok = true;
+  } catch (e) {
+    STATE.ok = false;
+  }
+  if (STATE.selected && !findAgent(STATE.selected)) STATE.selected = null;
+  render();
+}
+
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAgent(); });
+setInterval(tick, 3000);
+setInterval(renderAge, 1000);
+tick();
+</script>
+</body>
+</html>

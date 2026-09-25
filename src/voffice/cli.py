@@ -1,6 +1,9 @@
 """Entry point CLI voffice."""
 
 import argparse
+import json
+import subprocess
+import sys
 import tomllib
 from pathlib import Path
 
@@ -9,6 +12,9 @@ DEFAULT_CONFIG = {
     "status": {"working_max_seconds": 90, "idle_max_seconds": 900, "agent_ttl_hours": 24},
     "rooms": {"rename": {}, "hidden": []},
 }
+
+DEFAULT_DB_PATH = Path.home() / ".zcode" / "cli" / "db" / "db.sqlite"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_config(path: Path | None = None) -> dict:
@@ -40,5 +46,41 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    _build_parser().parse_args(argv)
+    args = _build_parser().parse_args(argv)
+    config = load_config()
+    if args.command == "run":
+        return cmd_run(args, config)
+    if args.command == "test":
+        return cmd_test()
+    if args.command == "snapshot":
+        return cmd_snapshot(args, config)
+    return 1
+
+
+def cmd_run(args, config: dict) -> int:
+    from voffice.collector import Collector
+    from voffice.server import run_server
+
+    db_path = args.db or str(DEFAULT_DB_PATH)
+    if args.port is not None:
+        config["server"]["port"] = args.port
+    collector = Collector(db_path, config)
+    collector.start()
+    static_dir = Path(__file__).parent / "static"
+    print(f"voidlight-office di http://127.0.0.1:{config['server']['port']} (db: {db_path})")
+    run_server(collector, config, static_dir, open_browser=not args.no_open)
+    return 0
+
+
+def cmd_test() -> int:
+    result = subprocess.run([sys.executable, "-m", "pytest", "-q"], cwd=str(PROJECT_ROOT))
+    return result.returncode
+
+
+def cmd_snapshot(args, config: dict) -> int:
+    from voffice.collector import load_snapshot
+
+    db_path = args.db or str(DEFAULT_DB_PATH)
+    snap = load_snapshot(db_path, config)
+    print(json.dumps(snap))
     return 0
