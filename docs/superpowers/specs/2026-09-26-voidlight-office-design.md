@@ -189,12 +189,12 @@ port = 8787
 poll_interval_seconds = 3
 
 [status]
-working_after_seconds = 90      # batas bawah hijau (aktivitas lebih muda dari ini = hijau)
-idle_after_seconds = 900        # 15 menit, batas kuning
+working_max_seconds = 90        # aktivitas lebih muda dari nilai ini = hijau (kerja)
+idle_max_seconds = 900          # 15 menit; lebih tua dari nilai ini = abu (quiet)
 agent_ttl_hours = 24            # sesi tanpa aktivitas selebih ini tidak tampil
 
 [rooms]
-rename = { }                    # contoh: { "default" = "zcode-workspace" }
+rename = { }                    # key = nama ruangan hasil derivasi, value = nama baru
 hidden = []                     # daftar nama ruangan yang disembunyikan
 ```
 
