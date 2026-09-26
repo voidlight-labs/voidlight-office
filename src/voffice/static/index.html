@@ -66,6 +66,11 @@
   .list { margin-top: 14px; }
   .list h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
   .list-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+  .acc-head { cursor: pointer; }
+  .acc-head:hover { color: var(--text); }
+  .chev { color: var(--dim); }
+  .content-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin-top: 8px; }
+  .pre { margin: 4px 0 0; background: var(--inset); border-radius: 6px; padding: 8px; font: 11px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -87,7 +92,7 @@
 const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
 const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {} };
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -243,22 +248,84 @@ function findAgent(id) {
   return null;
 }
 
-function openAgent(id) { STATE.selected = id; renderSlideover(); }
-function closeAgent() { STATE.selected = null; renderSlideover(); }
+function openAgent(id) { STATE.selected = id; STATE.openContent = null; renderSlideover(); }
+function closeAgent() { STATE.selected = null; STATE.openContent = null; renderSlideover(); }
 function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
 function toggleExpand(id) { STATE.expandedAgent = STATE.expandedAgent === id ? null : id; render(); }
+
+function toggleContent(kind, id) {
+  const key = kind + ":" + id;
+  if (STATE.openContent === key) { STATE.openContent = null; renderSlideover(); return; }
+  STATE.openContent = key;
+  renderSlideover();
+  if (!STATE.content[key]) {
+    fetch(`/api/content/${kind}/${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : { error: "http " + r.status }))
+      .then((d) => { STATE.content[key] = d; if (STATE.openContent === key) renderSlideover(); })
+      .catch((e) => { STATE.content[key] = { error: String(e) }; if (STATE.openContent === key) renderSlideover(); });
+  }
+}
+
+function trimmedNote(part) {
+  return part && part.truncated ? `\n... dipotong dari ${part.total_chars} char` : "";
+}
+
+function contentBlock(data) {
+  if (!data) return '<pre class="pre">memuat...</pre>';
+  if (data.error) return `<pre class="pre">${esc(data.error)}</pre>`;
+  if (data.kind === "tool") {
+    return `<div class="content">
+      <div class="content-label">input</div>
+      <pre class="pre">${esc(data.input ? data.input.content : "(kosong)")}${trimmedNote(data.input)}</pre>
+      <div class="content-label">output</div>
+      <pre class="pre">${esc(data.output ? data.output.content : "(kosong)")}${trimmedNote(data.output)}</pre>
+    </div>`;
+  }
+  const entries = (data.entries || []).map((e) => {
+    if (e.kind === "tool") {
+      return `<div class="content-label">tool: ${esc(e.tool)} · ${esc(e.status ?? "?")}</div>
+        <pre class="pre">${esc(e.input ? e.input.content : "(kosong)")}</pre>
+        <pre class="pre">${esc(e.output ? e.output.content : "(kosong)")}</pre>`;
+    }
+    return `<div class="content-label">${esc(e.kind)}${e.role ? " · " + esc(e.role) : ""}</div>
+      <pre class="pre">${esc(e.content ?? "")}</pre>`;
+  }).join("");
+  return `<div class="content">${entries || '<div class="kv">kosong</div>'}</div>`;
+}
 
 function renderSlideover() {
   const el = $("slideover");
   const a = STATE.selected && findAgent(STATE.selected);
   if (!a) { el.className = "slideover"; el.innerHTML = ""; return; }
   const c = COLORS[a.status] || COLORS.quiet;
-  const turns = (a.turns || []).slice().reverse().map((t) =>
-    `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span><span>${fmtTokens(t.output_tokens)} tok</span></div>`
-  ).join("");
-  const tools = (a.tools || []).slice().reverse().map((t) =>
-    `<div class="list-row"><span>${esc(t.tool)}</span><span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""}</span></div>`
-  ).join("");
+  const turns = (a.turns || []).slice().reverse().map((t) => {
+    if (!t.turn_id) {
+      return `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span><span>${fmtTokens(t.output_tokens)} tok</span></div>`;
+    }
+    const key = "turn:" + t.turn_id;
+    const open = STATE.openContent === key;
+    return `<div>
+      <div class="list-row acc-head" onclick="toggleContent('turn', '${esc(t.turn_id)}')">
+        <span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span>
+        <span>${fmtTokens(t.output_tokens)} tok <span class="chev">${open ? "▾" : "▸"}</span></span>
+      </div>
+      ${open ? contentBlock(STATE.content[key]) : ""}
+    </div>`;
+  }).join("");
+  const tools = (a.tools || []).slice().reverse().map((t) => {
+    if (!t.call_id) {
+      return `<div class="list-row"><span>${esc(t.tool)}</span><span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""}</span></div>`;
+    }
+    const key = "tool:" + t.call_id;
+    const open = STATE.openContent === key;
+    return `<div>
+      <div class="list-row acc-head" onclick="toggleContent('tool', '${esc(t.call_id)}')">
+        <span>${esc(t.tool)}</span>
+        <span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""} <span class="chev">${open ? "▾" : "▸"}</span></span>
+      </div>
+      ${open ? contentBlock(STATE.content[key]) : ""}
+    </div>`;
+  }).join("");
   const models = Object.entries(a.models || {})
     .map(([m, n]) => `<div class="list-row"><span>${esc(m)}</span><span>${fmtTokens(n)} tok</span></div>`).join("");
   const pct = a.target_budget > 0 ? Math.min(100, Math.round(a.target_used / a.target_budget * 100)) : null;

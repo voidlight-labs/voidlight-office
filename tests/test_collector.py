@@ -1,9 +1,10 @@
+import json
 import sqlite3
 import time
 
 import pytest
 
-from conftest import model, sess, target, tool, turn
+from conftest import model, msg, part_row, sess, target, tool, turn
 from voffice.collector import (
     AGENT_NAME_POOL,
     Collector,
@@ -19,6 +20,7 @@ from voffice.collector import (
     load_snapshot,
     room_name_for_directory,
 )
+from voffice.content import tool_content, turn_content
 
 NOW = 1_790_373_040_121
 MID = NOW - 7 * 3_600_000  # "tengah malam" buat test usage
@@ -524,3 +526,84 @@ def test_collector_loop_integration(make_db, cfg):
         time.sleep(0.01)
     c.stop()
     assert c.snapshot() is not None
+
+
+def test_tool_content_returns_input_output(make_db):
+    path = make_db(parts=[
+        part_row(id="p1", data={
+            "type": "tool", "callID": "call_1", "tool": "Bash",
+            "state": {"status": "completed", "input": {"command": "ls -la"},
+                      "output": "total 0"},
+        }),
+    ])
+    data = tool_content(path, "call_1")
+    assert data["kind"] == "tool"
+    assert data["tool"] == "Bash"
+    assert data["status"] == "completed"
+    assert json.loads(data["input"]["content"]) == {"command": "ls -la"}
+    assert data["output"]["content"] == "total 0"
+    assert data["output"]["truncated"] is False
+
+
+def test_tool_content_unknown_call(make_db):
+    path = make_db()
+    assert tool_content(path, "missing") is None
+
+
+def test_tool_content_truncated_at_cap(make_db):
+    path = make_db(parts=[
+        part_row(id="p1", data={
+            "type": "tool", "callID": "call_big", "tool": "Bash",
+            "state": {"status": "completed", "input": {"command": "x"},
+                      "output": "A" * 9000},
+        }),
+    ])
+    data = tool_content(path, "call_big")
+    assert data["output"]["truncated"] is True
+    assert len(data["output"]["content"]) == 5000
+    assert data["output"]["total_chars"] == 9000
+
+
+def test_turn_content_walks_message_chain(make_db):
+    path = make_db(
+        turns=[turn(session_id="sess_a", turn_id="t1", user_message_id="msg_u1")],
+        messages=[
+            msg(id="msg_u1", session_id="sess_a", role="user", time_created=100),
+            msg(id="msg_a1", session_id="sess_a", role="assistant", parent_id="msg_u1",
+                time_created=200),
+            msg(id="msg_u2", session_id="sess_a", role="user", parent_id="msg_a1",
+                time_created=300),
+        ],
+        parts=[
+            part_row(id="p1", message_id="msg_u1", data={"type": "text", "text": "jalankan tes"},
+                     sequence=0),
+            part_row(id="p2", message_id="msg_a1", data={"type": "text", "text": "selesai"},
+                     sequence=0),
+            part_row(id="p3", message_id="msg_a1", data={
+                "type": "tool", "callID": "call_9", "tool": "Bash",
+                "state": {"status": "completed", "input": {"command": "pytest"}, "output": "ok"},
+            }, sequence=1),
+            part_row(id="p4", message_id="msg_u2", data={"type": "text", "text": "turn berikutnya"},
+                     sequence=0),
+        ],
+    )
+    data = turn_content(path, "t1")
+    kinds = [(e["kind"], e.get("content") or e.get("tool")) for e in data["entries"]]
+    assert kinds == [("text", "jalankan tes"), ("text", "selesai"), ("tool", "Bash")]
+    assert data["entries"][2]["input"]["content"] == '{\n  "command": "pytest"\n}'
+    # pesan turn berikutnya tidak ikut
+    assert "turn berikutnya" not in json.dumps(data)
+
+
+def test_turn_content_unknown_turn(make_db):
+    path = make_db()
+    assert turn_content(path, "nope") is None
+
+
+def test_content_fail_soft_without_part_table(make_db):
+    path = make_db(drop_tables=("part", "message"),
+                   turns=[turn(session_id="sess_a", turn_id="t1", user_message_id="msg_u1")])
+    data = tool_content(path, "call_1")
+    assert "error" in data
+    data = turn_content(path, "t1")
+    assert "error" in data

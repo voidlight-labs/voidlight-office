@@ -166,13 +166,14 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
         "target_budget": (target.get("token_budget") or 0) if target else 0,
         "turns": [
             {"at": t.get("started_at"), "output_tokens": t.get("output_tokens") or 0,
-             "status": _status_of(t.get("status"))}
+             "status": _status_of(t.get("status")), "turn_id": t.get("turn_id"),
+             "user_message_id": t.get("user_message_id")}
             for t in turns[-10:]
         ],
         "tools": [
             {"tool": t.get("tool_name"), "duration_ms": t.get("duration_ms"),
              "status": TOOL_STATUS_MAP.get(t.get("status"), "running"),
-             "at": t.get("started_at")}
+             "at": t.get("started_at"), "call_id": t.get("tool_call_id")}
             for t in tools[-10:]
         ],
         "models": per_model,
@@ -344,16 +345,17 @@ QUERIES = {
         "time_created, time_updated FROM session_target ORDER BY time_updated"
     ),
     "turns": (
-        "SELECT session_id, turn_id, status, started_at, completed_at, output_tokens, "
-        "computed_total_tokens, error_type, cancelled_by_user FROM turn_usage ORDER BY started_at"
+        "SELECT session_id, turn_id, user_message_id, status, started_at, completed_at, "
+        "output_tokens, computed_total_tokens, error_type, cancelled_by_user "
+        "FROM turn_usage ORDER BY started_at"
     ),
     "models": (
         "SELECT session_id, model_id, provider_id, agent, started_at, completed_at, "
         "computed_total_tokens, error_type, cancelled_by_user FROM model_usage ORDER BY started_at"
     ),
     "tools": (
-        "SELECT session_id, turn_id, tool_name, status, started_at, completed_at, duration_ms, "
-        "error_type, cancelled_by_user FROM tool_usage ORDER BY started_at"
+        "SELECT session_id, turn_id, tool_call_id, tool_name, status, started_at, completed_at, "
+        "duration_ms, error_type, cancelled_by_user FROM tool_usage ORDER BY started_at"
     ),
 }
 

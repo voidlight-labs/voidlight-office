@@ -1,3 +1,4 @@
+import json
 import sqlite3
 
 import pytest
@@ -30,6 +31,7 @@ CREATE TABLE turn_usage (
   completed_at INTEGER,
   output_tokens INTEGER,
   computed_total_tokens INTEGER,
+  user_message_id TEXT,
   error_type TEXT,
   cancelled_by_user INTEGER
 );
@@ -47,6 +49,7 @@ CREATE TABLE model_usage (
 CREATE TABLE tool_usage (
   session_id TEXT,
   turn_id TEXT,
+  tool_call_id TEXT,
   tool_name TEXT,
   status TEXT,
   started_at INTEGER,
@@ -56,11 +59,28 @@ CREATE TABLE tool_usage (
   error_type TEXT,
   cancelled_by_user INTEGER
 );
+CREATE TABLE message (
+  id TEXT PRIMARY KEY,
+  session_id TEXT,
+  time_created INTEGER,
+  time_updated INTEGER,
+  data TEXT,
+  sequence INTEGER
+);
+CREATE TABLE part (
+  id TEXT PRIMARY KEY,
+  message_id TEXT,
+  session_id TEXT,
+  time_created INTEGER,
+  time_updated INTEGER,
+  data TEXT,
+  sequence INTEGER
+);
 """
 
 SESSION_COLS = ["id", "parent_id", "directory", "title", "time_created", "time_updated", "time_archived"]
 TARGET_COLS = ["session_id", "target_id", "objective", "status", "token_budget", "tokens_used", "time_created", "time_updated"]
-TURN_COLS = ["session_id", "turn_id", "status", "started_at", "completed_at", "output_tokens", "computed_total_tokens", "error_type", "cancelled_by_user"]
+TURN_COLS = ["session_id", "turn_id", "status", "started_at", "completed_at", "output_tokens", "computed_total_tokens", "user_message_id", "error_type", "cancelled_by_user"]
 MODEL_COLS = ["session_id", "model_id", "provider_id", "agent", "started_at", "completed_at", "computed_total_tokens", "error_type", "cancelled_by_user"]
 TOOL_COLS = ["session_id", "turn_id", "tool_name", "status", "started_at", "completed_at", "duration_ms", "exit_code", "error_type", "cancelled_by_user"]
 
@@ -81,11 +101,12 @@ def target(session_id="sess_a", objective="objek test", status="active",
 
 def turn(session_id="sess_a", turn_id="t1", status="completed", started_at=0,
          completed_at=None, output_tokens=0, computed_total_tokens=0,
-         error_type=None, cancelled_by_user=0):
+         user_message_id=None, error_type=None, cancelled_by_user=0):
     return {"session_id": session_id, "turn_id": turn_id, "status": status,
             "started_at": started_at, "completed_at": completed_at,
             "output_tokens": output_tokens, "computed_total_tokens": computed_total_tokens,
-            "error_type": error_type, "cancelled_by_user": cancelled_by_user}
+            "user_message_id": user_message_id, "error_type": error_type,
+            "cancelled_by_user": cancelled_by_user}
 
 
 def model(session_id="sess_a", model_id="GLM-5.3-Flash", provider_id="zai",
@@ -97,19 +118,38 @@ def model(session_id="sess_a", model_id="GLM-5.3-Flash", provider_id="zai",
             "cancelled_by_user": cancelled_by_user}
 
 
-def tool(session_id="sess_a", turn_id="t1", tool_name="Bash", status="completed",
-         started_at=0, completed_at=None, duration_ms=None, exit_code=0,
-         error_type=None, cancelled_by_user=0):
-    return {"session_id": session_id, "turn_id": turn_id, "tool_name": tool_name,
-            "status": status, "started_at": started_at, "completed_at": completed_at,
-            "duration_ms": duration_ms, "exit_code": exit_code, "error_type": error_type,
+def tool(session_id="sess_a", turn_id="t1", tool_call_id=None, tool_name="Bash",
+         status="completed", started_at=0, completed_at=None, duration_ms=None,
+         exit_code=0, error_type=None, cancelled_by_user=0):
+    return {"session_id": session_id, "turn_id": turn_id, "tool_call_id": tool_call_id,
+            "tool_name": tool_name, "status": status, "started_at": started_at,
+            "completed_at": completed_at, "duration_ms": duration_ms,
+            "exit_code": exit_code, "error_type": error_type,
             "cancelled_by_user": cancelled_by_user}
+
+
+def msg(id="msg_1", session_id="sess_a", role="user", parent_id=None,
+        time_created=0, sequence=0):
+    data = {"role": role, "parentID": parent_id}
+    return {"id": id, "session_id": session_id, "time_created": time_created,
+            "time_updated": time_created, "data": json.dumps(data), "sequence": sequence}
+
+
+def part_row(id="part_1", message_id="msg_1", session_id="sess_a",
+             data=None, time_created=0, sequence=0):
+    return {"id": id, "message_id": message_id, "session_id": session_id,
+            "time_created": time_created, "time_updated": time_created,
+            "data": json.dumps(data or {"type": "text", "text": ""}), "sequence": sequence}
+
+
+MESSAGE_COLS = ["id", "session_id", "time_created", "time_updated", "data", "sequence"]
+PART_COLS = ["id", "message_id", "session_id", "time_created", "time_updated", "data", "sequence"]
 
 
 @pytest.fixture
 def make_db(tmp_path):
     def _make(name="db.sqlite", drop_tables=(), sessions=(), targets=(),
-              turns=(), models=(), tools=()):
+              turns=(), models=(), tools=(), messages=(), parts=()):
         path = tmp_path / name
         con = sqlite3.connect(path)
         con.executescript(SCHEMA)
@@ -131,6 +171,8 @@ def make_db(tmp_path):
         insert("turn_usage", TURN_COLS, turns)
         insert("model_usage", MODEL_COLS, models)
         insert("tool_usage", TOOL_COLS, tools)
+        insert("message", MESSAGE_COLS, messages)
+        insert("part", PART_COLS, parts)
         con.commit()
         con.close()
         return path
