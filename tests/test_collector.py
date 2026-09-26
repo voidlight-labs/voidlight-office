@@ -12,6 +12,7 @@ from voffice.collector import (
     build_snapshot,
     compute_activity_ts,
     current_tool_line,
+    derive_role,
     derive_status,
     format_duration,
     is_last_turn_errored,
@@ -415,6 +416,44 @@ def test_snapshot_assigns_unique_names_to_all_agents():
     assert len(names) == 3
     assert len(set(names)) == 3
     assert set(names) <= set(AGENT_NAME_POOL)
+
+
+def test_derive_role_from_latest_model_usage():
+    models = [
+        model(started_at=1000, agent="zcode-general-purpose"),
+        model(started_at=2000, agent="zcode-Explore"),
+    ]
+    assert derive_role(models) == "Explore"
+    assert derive_role([model(started_at=1000, agent="zcode-agent")]) == "agent"
+    assert derive_role([model(started_at=1000, agent=None), model(started_at=2000)]) is None
+    assert derive_role([]) is None
+
+
+def test_snapshot_role_and_sub_roles_summary():
+    s = snap(
+        sessions=[
+            sess("parent", directory="C:/w/teraflow", created=NOW - 1000, updated=NOW),
+            sess("sub1", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+            sess("sub2", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+        ],
+        models=[
+            model(session_id="parent", agent="zcode-agent", started_at=NOW - 1000),
+            model(session_id="sub1", agent="zcode-Explore", started_at=NOW - 1000),
+            model(session_id="sub2", agent="zcode-judge", started_at=NOW - 1000),
+        ],
+    )
+    parent = s["rooms"][0]["agents"][0]
+    assert parent["role"] == "agent"
+    assert parent["subagents"][0]["role"] == "Explore"
+    assert parent["subagents"][1]["role"] == "judge"
+    assert parent["sub_roles"] == {"Explore": 1, "judge": 1}
+
+
+def test_snapshot_no_role_when_model_usage_empty():
+    s = snap(sessions=[sess("sess_a", directory="C:/w/teraflow", created=NOW, updated=NOW)])
+    agent = s["rooms"][0]["agents"][0]
+    assert agent["role"] is None
+    assert agent["sub_roles"] == {}
 
 
 def test_load_snapshot_from_fixture_db(make_db, cfg):

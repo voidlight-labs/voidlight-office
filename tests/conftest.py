@@ -37,6 +37,7 @@ CREATE TABLE model_usage (
   session_id TEXT,
   model_id TEXT,
   provider_id TEXT,
+  agent TEXT,
   started_at INTEGER,
   completed_at INTEGER,
   computed_total_tokens INTEGER,
@@ -60,7 +61,7 @@ CREATE TABLE tool_usage (
 SESSION_COLS = ["id", "parent_id", "directory", "title", "time_created", "time_updated", "time_archived"]
 TARGET_COLS = ["session_id", "target_id", "objective", "status", "token_budget", "tokens_used", "time_created", "time_updated"]
 TURN_COLS = ["session_id", "turn_id", "status", "started_at", "completed_at", "output_tokens", "computed_total_tokens", "error_type", "cancelled_by_user"]
-MODEL_COLS = ["session_id", "model_id", "provider_id", "started_at", "completed_at", "computed_total_tokens", "error_type", "cancelled_by_user"]
+MODEL_COLS = ["session_id", "model_id", "provider_id", "agent", "started_at", "completed_at", "computed_total_tokens", "error_type", "cancelled_by_user"]
 TOOL_COLS = ["session_id", "turn_id", "tool_name", "status", "started_at", "completed_at", "duration_ms", "exit_code", "error_type", "cancelled_by_user"]
 
 
@@ -88,10 +89,10 @@ def turn(session_id="sess_a", turn_id="t1", status="completed", started_at=0,
 
 
 def model(session_id="sess_a", model_id="GLM-5.3-Flash", provider_id="zai",
-          started_at=0, completed_at=None, computed_total_tokens=0,
+          agent=None, started_at=0, completed_at=None, computed_total_tokens=0,
           error_type=None, cancelled_by_user=0):
     return {"session_id": session_id, "model_id": model_id, "provider_id": provider_id,
-            "started_at": started_at, "completed_at": completed_at,
+            "agent": agent, "started_at": started_at, "completed_at": completed_at,
             "computed_total_tokens": computed_total_tokens, "error_type": error_type,
             "cancelled_by_user": cancelled_by_user}
 

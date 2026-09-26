@@ -39,6 +39,14 @@
   .a-meta { color: var(--muted); font-size: 12.5px; }
   .subs { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .chip.chip-open { color: var(--text); outline: 1px solid var(--line); }
+  .subs > div { flex: 1 1 100%; }
+  .role-badge { display: inline-block; font-size: 10.5px; line-height: 1.6; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); }
+  .sub-rows { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .sub-row { display: flex; align-items: center; gap: 8px; background: var(--inset); border-radius: 8px; padding: 5px 9px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .sub-row:hover { outline: 1px solid var(--line); }
+  .sub-row .who { color: var(--text); }
+  .sub-row .dot { margin-top: 0; }
   .chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .bar { height: 7px; background: #22314f; border-radius: 3px; overflow: hidden; margin-top: 12px; }
   .bar > div { height: 100%; border-radius: 3px; }
@@ -77,8 +85,9 @@
 "use strict";
 
 const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
+const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null };
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -112,6 +121,21 @@ function sparkline(values, color) {
   return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
 }
 
+function roleBadge(role) {
+  const c = role ? (ROLE_COLORS[role] || "var(--muted)") : "var(--dim)";
+  return `<span class="role-badge" style="color:${c};border-color:${c}">${esc(role || "?")}</span>`;
+}
+
+function subRow(s) {
+  const c = COLORS[s.status] || COLORS.quiet;
+  return `<div class="sub-row" onclick="openAgent('${esc(s.id)}')">
+    <span class="dot" style="background:${c}"></span>
+    <span class="who">${esc(s.name || s.short_name)}</span>
+    ${roleBadge(s.role)}
+    <span style="margin-left:auto">${fmtTokens(s.tokens)} tok</span>
+  </div>`;
+}
+
 function agentRow(a) {
   const c = COLORS[a.status] || COLORS.quiet;
   const title = a.title || "tanpa judul";
@@ -137,8 +161,16 @@ function roomCard(r) {
   const agents = r.agents.map(agentRow).join("");
   const chips = r.agents
     .filter((a) => a.subagents.length)
-    .map((a) => `<span class="chip" onclick="openAgent('${esc(a.id)}')">${esc(a.name || a.short_name)} + ${a.subagents.length} sub
-      ${a.subagents.map((s) => `<i style="background:${COLORS[s.status] || COLORS.quiet}"></i>`).join("")}</span>`)
+    .map((a) => {
+      const open = STATE.expandedAgent === a.id;
+      const roles = Object.entries(a.sub_roles || {})
+        .map(([role, n]) => `<span style="color:${ROLE_COLORS[role] || "var(--muted)"}">${esc(role)} x${n}</span>`)
+        .join(" &middot; ");
+      return `<div>
+        <span class="chip ${open ? "chip-open" : ""}" onclick="toggleExpand('${esc(a.id)}')">${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""}</span>
+        ${open ? `<div class="sub-rows">${a.subagents.map(subRow).join("")}</div>` : ""}
+      </div>`;
+    })
     .join("");
   return `<div class="room">
     <div class="room-head ${active}" onclick="toggleFilter('${esc(r.name)}')">
@@ -214,6 +246,7 @@ function findAgent(id) {
 function openAgent(id) { STATE.selected = id; renderSlideover(); }
 function closeAgent() { STATE.selected = null; renderSlideover(); }
 function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
+function toggleExpand(id) { STATE.expandedAgent = STATE.expandedAgent === id ? null : id; render(); }
 
 function renderSlideover() {
   const el = $("slideover");
@@ -233,6 +266,7 @@ function renderSlideover() {
     <button class="close" onclick="closeAgent()">x</button>
     <h2><span class="avatar" style="border-color:${c}">${esc((a.name || "?").slice(0, 2))}</span>${esc(a.title || "tanpa judul")}</h2>
     <div class="kv">agent: <b>${esc(a.name || a.short_name)}</b> &middot; ${esc(a.short_name ?? "")}</div>
+    <div class="kv">role: ${roleBadge(a.role)}</div>
     <div class="kv">status: <b>${esc(a.status_detail)}</b></div>
     <div class="kv">model: ${esc(a.model ?? "-")}</div>
     <div class="kv">token total: <b>${fmtTokens(a.tokens)}</b> &middot; ${a.tool_calls} tool calls</div>
@@ -241,7 +275,8 @@ function renderSlideover() {
       <div class="kv">${fmtTokens(a.target_used)} / ${fmtTokens(a.target_budget)} tok (${pct}%)</div>` : ""}
     <div class="list"><h4>Turn terakhir</h4>${turns || '<div class="kv">kosong</div>'}</div>
     <div class="list"><h4>Tool calls</h4>${tools || '<div class="kv">kosong</div>'}</div>
-    <div class="list"><h4>Per model</h4>${models || '<div class="kv">kosong</div>'}</div>`;
+    <div class="list"><h4>Per model</h4>${models || '<div class="kv">kosong</div>'}</div>
+    ${a.subagents && a.subagents.length ? `<div class="list"><h4>Subagents (${a.subagents.length})</h4><div class="sub-rows">${a.subagents.map(subRow).join("")}</div></div>` : ""}`;
   el.className = "slideover open";
 }
 

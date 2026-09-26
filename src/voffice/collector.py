@@ -57,6 +57,18 @@ def agent_name_for_session(session_id: str, pool: list[str] = AGENT_NAME_POOL,
     return pool[start]
 
 
+ROLE_PREFIX = "zcode-"
+
+
+def derive_role(models: list) -> str | None:
+    """Role agent dari model_usage.agent terakhir yang terisi, tanpa prefix zcode-."""
+    for row in sorted(models, key=lambda r: r.get("started_at") or 0, reverse=True):
+        raw = row.get("agent")
+        if raw:
+            return raw[len(ROLE_PREFIX):] if raw.startswith(ROLE_PREFIX) else raw
+    return None
+
+
 def _row_ts(row: dict) -> int | None:
     return row.get("completed_at") or row.get("started_at")
 
@@ -138,6 +150,7 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
         "id": session["id"],
         "title": session.get("title"),
         "name": None,
+        "role": derive_role(models),
         "short_name": None,
         "parent_id": session.get("parent_id"),
         "status": status,
@@ -256,6 +269,12 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
             parent = agent_by_id.get(a["parent_id"])
             if parent is not None:
                 parent["subagents"].append(a)
+        for top in tops:
+            counts: dict = {}
+            for sub in top["subagents"]:
+                if sub.get("role"):
+                    counts[sub["role"]] = counts.get(sub["role"], 0) + 1
+            top["sub_roles"] = counts
 
         everyone = _flatten_agents(tops)
         working_count += sum(1 for a in everyone if a["status"] == "kerja")
@@ -329,7 +348,7 @@ QUERIES = {
         "computed_total_tokens, error_type, cancelled_by_user FROM turn_usage ORDER BY started_at"
     ),
     "models": (
-        "SELECT session_id, model_id, provider_id, started_at, completed_at, "
+        "SELECT session_id, model_id, provider_id, agent, started_at, completed_at, "
         "computed_total_tokens, error_type, cancelled_by_user FROM model_usage ORDER BY started_at"
     ),
     "tools": (
