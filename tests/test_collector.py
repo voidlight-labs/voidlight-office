@@ -5,7 +5,9 @@ import pytest
 
 from conftest import model, sess, target, tool, turn
 from voffice.collector import (
+    AGENT_NAME_POOL,
     Collector,
+    agent_name_for_session,
     build_agent,
     build_snapshot,
     compute_activity_ts,
@@ -312,10 +314,11 @@ def test_snapshot_activity_feed():
         ],
     )
     feed = s["activity"]
+    name_a, name_b = agent_name_for_session("sess_a"), agent_name_for_session("sess_b")
     assert [(r["room"], r["agent"], r["tool"], r["status"]) for r in feed] == [
-        ("teraflow", "T1", "Read", "running"),
-        ("voidlight", "V1", "Edit", "error"),
-        ("teraflow", "T1", "Bash", "ok"),
+        ("teraflow", name_a, "Read", "running"),
+        ("voidlight", name_b, "Edit", "error"),
+        ("teraflow", name_a, "Bash", "ok"),
     ]
     assert feed[0]["duration_ms"] is None
     assert feed[1]["duration_ms"] == 500
@@ -376,6 +379,42 @@ def test_snapshot_meta_errors_passed_through():
     s = snap(errors=["query tools gagal: no such table"], partial=True)
     assert s["meta"]["partial"] is True
     assert s["meta"]["errors"] == ["query tools gagal: no such table"]
+
+
+def test_agent_name_deterministic_per_session():
+    assert agent_name_for_session("sess_a") == agent_name_for_session("sess_a")
+    assert agent_name_for_session("sess_a") in AGENT_NAME_POOL
+
+
+def test_agent_name_uniqueness_falls_to_next_pool_entry():
+    pool = ["Alpha", "Beta", "Gamma"]
+    used: set = set()
+    first = agent_name_for_session("sess_a", pool, used)
+    used.add(first)
+    second = agent_name_for_session("sess_b", pool, used)
+    used.add(second)
+    third = agent_name_for_session("sess_c", pool, used)
+    assert len({first, second, third}) == 3
+    assert {first, second, third} <= set(pool)
+
+
+def test_snapshot_assigns_unique_names_to_all_agents():
+    s = snap(
+        sessions=[
+            sess("parent", directory="C:/w/teraflow", created=NOW - 1000, updated=NOW),
+            sess("sub1", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+            sess("other", directory="C:/w/voidlight", created=NOW, updated=NOW),
+        ],
+    )
+    names = []
+    for r in s["rooms"]:
+        for a in r["agents"]:
+            names.append(a["name"])
+            for sub in a["subagents"]:
+                names.append(sub["name"])
+    assert len(names) == 3
+    assert len(set(names)) == 3
+    assert set(names) <= set(AGENT_NAME_POOL)
 
 
 def test_load_snapshot_from_fixture_db(make_db, cfg):

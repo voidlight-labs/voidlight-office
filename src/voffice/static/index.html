@@ -114,15 +114,18 @@ function sparkline(values, color) {
 
 function agentRow(a) {
   const c = COLORS[a.status] || COLORS.quiet;
-  const tool = a.current_tool || a.title || "tanpa aktivitas";
+  const title = a.title || "tanpa judul";
+  const meta = [a.name, a.status_detail, a.current_tool, a.model ?? "-",
+    fmtTokens(a.tokens) + " tok", a.tool_calls + " tools"]
+    .filter((x) => x != null && x !== "").map(esc).join(" &middot; ");
   const bar = a.target_budget > 0
     ? `<div class="bar"><div style="width:${Math.min(100, Math.round(a.target_used / a.target_budget * 100))}%;background:${c}"></div></div>`
     : "";
   return `<div class="agent" onclick="openAgent('${esc(a.id)}')">
-    <div class="avatar" style="border-color:${c}">${esc(a.short_name)}</div>
+    <div class="avatar" style="border-color:${c}">${esc((a.name || "?").slice(0, 2))}</div>
     <div class="a-main">
-      <div class="a-tool">${esc(tool)}</div>
-      <div class="a-meta">${esc(a.status_detail)} &middot; ${esc(a.model ?? "-")} &middot; ${fmtTokens(a.tokens)} tok &middot; ${a.tool_calls} tools</div>
+      <div class="a-tool">${esc(title)}</div>
+      <div class="a-meta">${meta}</div>
       ${bar}
     </div>
     ${sparkline(a.sparkline, c)}
@@ -134,7 +137,7 @@ function roomCard(r) {
   const agents = r.agents.map(agentRow).join("");
   const chips = r.agents
     .filter((a) => a.subagents.length)
-    .map((a) => `<span class="chip" onclick="openAgent('${esc(a.id)}')">${esc(a.short_name)} + ${a.subagents.length} sub
+    .map((a) => `<span class="chip" onclick="openAgent('${esc(a.id)}')">${esc(a.name || a.short_name)} + ${a.subagents.length} sub
       ${a.subagents.map((s) => `<i style="background:${COLORS[s.status] || COLORS.quiet}"></i>`).join("")}</span>`)
     .join("");
   return `<div class="room">
@@ -228,7 +231,8 @@ function renderSlideover() {
   const pct = a.target_budget > 0 ? Math.min(100, Math.round(a.target_used / a.target_budget * 100)) : null;
   el.innerHTML = `
     <button class="close" onclick="closeAgent()">x</button>
-    <h2><span class="avatar" style="border-color:${c}">${esc(a.short_name)}</span>${esc(a.title || a.short_name)}</h2>
+    <h2><span class="avatar" style="border-color:${c}">${esc((a.name || "?").slice(0, 2))}</span>${esc(a.title || "tanpa judul")}</h2>
+    <div class="kv">agent: <b>${esc(a.name || a.short_name)}</b> &middot; ${esc(a.short_name ?? "")}</div>
     <div class="kv">status: <b>${esc(a.status_detail)}</b></div>
     <div class="kv">model: ${esc(a.model ?? "-")}</div>
     <div class="kv">token total: <b>${fmtTokens(a.tokens)}</b> &middot; ${a.tool_calls} tool calls</div>

@@ -1,5 +1,6 @@
 """Collector: query db ZCode read-only + fungsi murni agregasi snapshot."""
 
+import hashlib
 import sqlite3
 import threading
 import time
@@ -7,6 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 WORKSPACE_DIRNAME = ".zcode/workspace"
+
+AGENT_NAME_POOL = [
+    "Andra", "Bayu", "Citra", "Dewi", "Eka", "Fajar", "Gita", "Hana",
+    "Ika", "Jaya", "Kiran", "Luna", "Maya", "Nia", "Oka", "Putri",
+    "Rani", "Sari", "Teguh", "Umar", "Vina", "Wulan", "Yoga", "Zaki",
+    "Aruna", "Binar", "Cakra", "Damar", "Elang", "Gemilang",
+]
 
 
 def room_name_for_directory(directory: str | None, home: str | None) -> str:
@@ -36,6 +44,17 @@ def format_duration(ms: int | None) -> str:
         return f"{m}m {s}s" if s else f"{m}m"
     h, m = divmod(m, 60)
     return f"{h}h {m}m"
+
+
+def agent_name_for_session(session_id: str, pool: list[str] = AGENT_NAME_POOL,
+                           used: frozenset | set = frozenset()) -> str:
+    """Nama agent deterministik dari session_id; kalau sudah dipakai, geser ke nama berikutnya."""
+    start = int(hashlib.sha1(session_id.encode()).hexdigest(), 16) % len(pool)
+    for offset in range(len(pool)):
+        name = pool[(start + offset) % len(pool)]
+        if name not in used:
+            return name
+    return pool[start]
 
 
 def _row_ts(row: dict) -> int | None:
@@ -118,6 +137,7 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
     return {
         "id": session["id"],
         "title": session.get("title"),
+        "name": None,
         "short_name": None,
         "parent_id": session.get("parent_id"),
         "status": status,
@@ -207,6 +227,7 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
     room_dicts = []
     working_count = 0
     agent_by_id: dict = {}
+    used_names: set = set()
     for display, members in grouped.items():
         members = sorted(members, key=lambda s: s.get("time_created") or 0)
         initial = display[:1].upper()
@@ -220,6 +241,8 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
                 now_ms=now_ms, status_cfg=status_cfg,
             )
             agent["short_name"] = f"{initial}{i}"
+            agent["name"] = agent_name_for_session(s["id"], used=used_names)
+            used_names.add(agent["name"])
             agent_by_id[s["id"]] = agent
 
         tops, subs = [], []
@@ -264,7 +287,7 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
             for t in session_tools.get(a["id"], []):
                 feed.append({
                     "room": r["name"],
-                    "agent": a["short_name"],
+                    "agent": a["name"] or a["short_name"],
                     "tool": t.get("tool_name"),
                     "status": TOOL_STATUS_MAP.get(t.get("status"), "running"),
                     "duration_ms": t.get("duration_ms"),
