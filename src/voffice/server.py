@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from voffice.content import tool_content, turn_content
+from voffice.intelligence import intelligence_report
 
 
 def create_app(holder, static_dir: Path, db_path: str | None = None,
@@ -47,6 +48,12 @@ def create_app(holder, static_dir: Path, db_path: str | None = None,
         if data is None:
             return JSONResponse(status_code=404, content={"error": "turn tidak ditemukan"})
         return data
+
+    @app.get("/api/intelligence")
+    def get_intelligence(scope: str = "all"):
+        if not db_path:
+            return JSONResponse(status_code=404, content={"error": "db_path tidak diset"})
+        return intelligence_report(db_path, scope=scope)
 
     # route /api didaftarkan lebih dulu supaya tidak tertelan mount "/"
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")

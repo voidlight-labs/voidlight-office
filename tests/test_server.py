@@ -2,7 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from conftest import msg, part_row, turn
+from conftest import msg, part_row, sess, turn
 from voffice.server import create_app
 
 
@@ -72,3 +72,35 @@ def test_content_endpoints_without_db(tmp_path):
     client = TestClient(app)
     assert client.get("/api/content/tool/x").status_code == 404
     assert client.get("/api/content/turn/x").status_code == 404
+    assert client.get("/api/intelligence").status_code == 404
+
+
+def test_intelligence_endpoint(make_db):
+    from datetime import datetime
+
+    now = 1_790_373_040_121
+    mid = int(datetime.fromtimestamp(now / 1000)
+              .replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
+    db = make_db(
+        sessions=[sess("sess_a", directory="C:/w/teraflow", created=now)],
+        turns=[
+            turn(session_id="sess_a", turn_id="t1", started_at=mid + 1000,
+                 computed_total_tokens=700),
+            turn(session_id="sess_a", turn_id="t2", started_at=mid - 999_000,
+                 computed_total_tokens=9_000),
+        ],
+    )
+    app = create_app(FakeHolder(None), Path("/tmp"), db_path=str(db))
+    client = TestClient(app)
+
+    all_res = client.get("/api/intelligence?scope=all")
+    assert all_res.status_code == 200
+    body = all_res.json()
+    assert body["sessions"][0]["total"] == 9700
+    assert body["turns"][0]["total"] == 9000
+
+    today_res = client.get("/api/intelligence?scope=today")
+    assert today_res.json()["sessions"][0]["total"] == 700
+
+    bogus = client.get("/api/intelligence?scope=hazard")
+    assert bogus.json()["scope"] == "all"

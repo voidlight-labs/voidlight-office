@@ -17,6 +17,28 @@
   .stat { color: var(--muted); font-size: 13px; }
   .stat b { color: var(--text); }
   .age { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .topbar-btn { background: var(--accent); color: #08101f; border: none; border-radius: 6px; padding: 3px 12px; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+  .topbar-btn:hover { filter: brightness(1.15); }
+  .overlay { position: fixed; inset: 0; background: rgba(4, 9, 20, .85); z-index: 20; display: none; overflow: auto; padding: 24px; }
+  .overlay.open { display: block; }
+  .insights { max-width: 980px; margin: 0 auto; background: var(--panel-hi); border: 1px solid var(--accent); border-radius: 16px; padding: 20px; }
+  .insights h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: 1px; }
+  .insights .sub { color: var(--muted); font-size: 12px; margin: 0 0 6px; }
+  .insights .close { position: sticky; top: 0; float: right; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+  .scope-toggle { display: inline-flex; gap: 4px; margin: 10px 0 4px; }
+  .scope-toggle button { background: var(--inset); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 4px 14px; font: 12px system-ui, sans-serif; cursor: pointer; }
+  .scope-toggle button.on { color: #08101f; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .rank h3 { margin: 18px 0 8px; font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .rank-row { position: relative; display: flex; align-items: baseline; gap: 10px; padding: 6px 10px; border-radius: 8px; font-size: 13px; color: var(--muted); overflow: hidden; margin-bottom: 3px; }
+  .rank-row .bar-bg { position: absolute; inset: 0; background: #16233f; z-index: 0; }
+  .rank-row .bar-fill { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(56, 189, 248, .25), rgba(56, 189, 248, .06)); z-index: 0; }
+  .rank-row > span { position: relative; z-index: 1; }
+  .rank-row .rank-no { color: var(--dim); width: 18px; flex-shrink: 0; }
+  .rank-row .who { color: var(--text); font-weight: 600; flex-shrink: 0; }
+  .rank-row .total { margin-left: auto; color: var(--text); font-weight: 700; flex-shrink: 0; }
+  .rank-row .detail { flex-shrink: 0; }
+  .rank-note { color: var(--dim); font-size: 11px; margin: 4px 0 0 10px; }
+  .insights .empty { color: var(--dim); text-align: center; padding: 40px; }
   .banner { padding: 6px 16px; font-size: 13px; display: none; }
   .banner.show { display: block; }
   .banner.warn { background: #3a2f12; color: var(--yellow); }
@@ -76,6 +98,7 @@
 <body>
   <div class="topbar">
     <span class="brand">VOIDLIGHT OFFICE</span>
+    <button class="topbar-btn" onclick="openInsights()">Insights</button>
     <span class="stat" id="stat-working"></span>
     <span class="stat" id="stat-tokens"></span>
     <span class="age" id="age"></span>
@@ -86,13 +109,14 @@
     <div class="feed"><h3 id="feed-title">Activity</h3><div id="feed-rows"></div></div>
   </main>
   <div class="slideover" id="slideover"></div>
+  <div class="overlay" id="insights-overlay"></div>
 <script>
 "use strict";
 
 const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
 const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {} };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null };
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -253,6 +277,80 @@ function closeAgent() { STATE.selected = null; STATE.openContent = null; renderS
 function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
 function toggleExpand(id) { STATE.expandedAgent = STATE.expandedAgent === id ? null : id; render(); }
 
+function openInsights() { STATE.insightsOpen = true; loadInsights(); }
+function closeInsights() { STATE.insightsOpen = false; renderInsights(); }
+function setInsightsScope(scope) { STATE.insightsScope = scope; loadInsights(); }
+
+function loadInsights() {
+  renderInsights();
+  fetch(`/api/intelligence?scope=${encodeURIComponent(STATE.insightsScope)}`)
+    .then((r) => (r.ok ? r.json() : { error: "http " + r.status }))
+    .then((d) => {
+      if (STATE.insightsOpen) { STATE.insightsData = d; renderInsights(); }
+    })
+    .catch((e) => {
+      if (STATE.insightsOpen) { STATE.insightsData = { error: String(e) }; renderInsights(); }
+    });
+}
+
+function fmtBytes(n) {
+  if (!n) return "0";
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + " GB";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
+  if (n >= 1e3) return Math.round(n / 1e3) + " kB";
+  return n + " B";
+}
+
+function breakdown(d) {
+  return `in ${fmtTokens(d.input)} &middot; out ${fmtTokens(d.output)} &middot; cc ${fmtTokens(d.cache_creation)} &middot; cr ${fmtTokens(d.cache_read)}`;
+}
+
+function rankRows(rows, cols) {
+  return rows.map((r, i) => `<div class="rank-row">
+    <div class="bar-bg"></div><div class="bar-fill" style="width:${r.share || 0}%"></div>
+    <span class="rank-no">${i + 1}</span>
+    ${cols(r)}
+  </div>`).join("") || '<div class="empty">belum ada data</div>';
+}
+
+function renderInsights() {
+  const el = $("insights-overlay");
+  if (!STATE.insightsOpen) { el.className = "overlay"; el.innerHTML = ""; return; }
+  const scope = STATE.insightsScope;
+  const d = STATE.insightsData;
+  let body;
+  if (!d) body = '<div class="empty">menganalisa...</div>';
+  else if (d.error) body = `<div class="empty">${esc(d.error)}</div>`;
+  else {
+    const sessions = rankRows(d.sessions || [], (r) =>
+      `<span class="who">${esc(r.name)}</span><span>${esc(r.room)}${r.title ? " · " + esc(r.title) : ""}</span>
+       <span class="detail">${breakdown(r)}</span><span class="total">${fmtTokens(r.total)} tok</span>`);
+    const turns = rankRows(d.turns || [], (r) =>
+      `<span class="who">${esc(r.name)}</span><span>${new Date(r.at).toLocaleString()}</span>
+       <span class="detail">${breakdown(r)} · ${r.tool_calls} tool</span><span class="total">${fmtTokens(r.total)} tok</span>`);
+    const tools = rankRows(d.tools || [], (r) =>
+      `<span class="who">${esc(r.tool)}</span><span>${r.calls} calls</span>
+       <span class="detail">output ${fmtBytes(r.output_bytes)} · est ${fmtTokens(r.est_tokens)} tok</span><span class="total">${fmtBytes(r.output_bytes)}</span>`);
+    const partial = (d.errors || []).length
+      ? `<div class="rank-note">data parsial: ${esc(d.errors.join("; "))}</div>` : "";
+    body = `<div class="insights">
+      <button class="close" onclick="closeInsights()">x</button>
+      <h2>TOKEN INTELLIGENCE</h2>
+      <p class="sub">siapa yang paling boros, dan komposisinya: cc = cache creation (konteks makin gemuk), cr = cache read (hemat, bukan bengkak)</p>
+      <div class="scope-toggle">
+        <button class="${scope === "all" ? "on" : ""}" onclick="setInsightsScope('all')">All time</button>
+        <button class="${scope === "today" ? "on" : ""}" onclick="setInsightsScope('today')">Today</button>
+      </div>
+      ${partial}
+      <div class="rank"><h3>Session terboros</h3>${sessions}</div>
+      <div class="rank"><h3>Turn terboros</h3>${turns}</div>
+      <div class="rank"><h3>Tool paling boros (ranking by output bytes; est token = bagian token turn-nya)</h3>${tools}</div>
+    </div>`;
+  }
+  el.innerHTML = body;
+  el.className = "overlay open";
+}
+
 function toggleContent(kind, id) {
   const key = kind + ":" + id;
   if (STATE.openContent === key) { STATE.openContent = null; renderSlideover(); return; }
@@ -371,7 +469,12 @@ async function tick() {
   render();
 }
 
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAgent(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeAgent();
+    closeInsights();
+  }
+});
 setInterval(tick, 3000);
 setInterval(renderAge, 1000);
 tick();

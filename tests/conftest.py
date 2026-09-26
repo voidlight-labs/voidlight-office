@@ -29,8 +29,13 @@ CREATE TABLE turn_usage (
   status TEXT,
   started_at INTEGER,
   completed_at INTEGER,
+  input_tokens INTEGER,
   output_tokens INTEGER,
+  cache_creation_input_tokens INTEGER,
+  cache_read_input_tokens INTEGER,
   computed_total_tokens INTEGER,
+  tool_call_count INTEGER,
+  duration_ms INTEGER,
   user_message_id TEXT,
   error_type TEXT,
   cancelled_by_user INTEGER
@@ -56,6 +61,9 @@ CREATE TABLE tool_usage (
   completed_at INTEGER,
   duration_ms INTEGER,
   exit_code INTEGER,
+  output_bytes INTEGER,
+  stdout_bytes INTEGER,
+  stderr_bytes INTEGER,
   error_type TEXT,
   cancelled_by_user INTEGER
 );
@@ -80,9 +88,9 @@ CREATE TABLE part (
 
 SESSION_COLS = ["id", "parent_id", "directory", "title", "time_created", "time_updated", "time_archived"]
 TARGET_COLS = ["session_id", "target_id", "objective", "status", "token_budget", "tokens_used", "time_created", "time_updated"]
-TURN_COLS = ["session_id", "turn_id", "status", "started_at", "completed_at", "output_tokens", "computed_total_tokens", "user_message_id", "error_type", "cancelled_by_user"]
+TURN_COLS = ["session_id", "turn_id", "status", "started_at", "completed_at", "input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "computed_total_tokens", "tool_call_count", "duration_ms", "user_message_id", "error_type", "cancelled_by_user"]
 MODEL_COLS = ["session_id", "model_id", "provider_id", "agent", "started_at", "completed_at", "computed_total_tokens", "error_type", "cancelled_by_user"]
-TOOL_COLS = ["session_id", "turn_id", "tool_name", "status", "started_at", "completed_at", "duration_ms", "exit_code", "error_type", "cancelled_by_user"]
+TOOL_COLS = ["session_id", "turn_id", "tool_call_id", "tool_name", "status", "started_at", "completed_at", "duration_ms", "exit_code", "output_bytes", "stdout_bytes", "stderr_bytes", "error_type", "cancelled_by_user"]
 
 
 def sess(id="sess_a", directory="C:/work/proj", parent_id=None, title=None,
@@ -100,13 +108,19 @@ def target(session_id="sess_a", objective="objek test", status="active",
 
 
 def turn(session_id="sess_a", turn_id="t1", status="completed", started_at=0,
-         completed_at=None, output_tokens=0, computed_total_tokens=0,
+         completed_at=None, input_tokens=0, output_tokens=0,
+         cache_creation_input_tokens=0, cache_read_input_tokens=0,
+         computed_total_tokens=0, tool_call_count=0, duration_ms=None,
          user_message_id=None, error_type=None, cancelled_by_user=0):
     return {"session_id": session_id, "turn_id": turn_id, "status": status,
             "started_at": started_at, "completed_at": completed_at,
-            "output_tokens": output_tokens, "computed_total_tokens": computed_total_tokens,
-            "user_message_id": user_message_id, "error_type": error_type,
-            "cancelled_by_user": cancelled_by_user}
+            "input_tokens": input_tokens, "output_tokens": output_tokens,
+            "cache_creation_input_tokens": cache_creation_input_tokens,
+            "cache_read_input_tokens": cache_read_input_tokens,
+            "computed_total_tokens": computed_total_tokens,
+            "tool_call_count": tool_call_count, "duration_ms": duration_ms,
+            "user_message_id": user_message_id,
+            "error_type": error_type, "cancelled_by_user": cancelled_by_user}
 
 
 def model(session_id="sess_a", model_id="GLM-5.3-Flash", provider_id="zai",
@@ -120,12 +134,14 @@ def model(session_id="sess_a", model_id="GLM-5.3-Flash", provider_id="zai",
 
 def tool(session_id="sess_a", turn_id="t1", tool_call_id=None, tool_name="Bash",
          status="completed", started_at=0, completed_at=None, duration_ms=None,
-         exit_code=0, error_type=None, cancelled_by_user=0):
+         exit_code=0, output_bytes=None, stdout_bytes=None, stderr_bytes=None,
+         error_type=None, cancelled_by_user=0):
     return {"session_id": session_id, "turn_id": turn_id, "tool_call_id": tool_call_id,
             "tool_name": tool_name, "status": status, "started_at": started_at,
             "completed_at": completed_at, "duration_ms": duration_ms,
-            "exit_code": exit_code, "error_type": error_type,
-            "cancelled_by_user": cancelled_by_user}
+            "exit_code": exit_code, "output_bytes": output_bytes,
+            "stdout_bytes": stdout_bytes, "stderr_bytes": stderr_bytes,
+            "error_type": error_type, "cancelled_by_user": cancelled_by_user}
 
 
 def msg(id="msg_1", session_id="sess_a", role="user", parent_id=None,
