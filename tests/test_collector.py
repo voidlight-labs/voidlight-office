@@ -1,21 +1,26 @@
+import json
 import sqlite3
 import time
 
 import pytest
 
-from conftest import model, sess, target, tool, turn
+from conftest import model, msg, part_row, sess, target, tool, turn
 from voffice.collector import (
+    AGENT_NAME_POOL,
     Collector,
+    agent_name_for_session,
     build_agent,
     build_snapshot,
     compute_activity_ts,
     current_tool_line,
+    derive_role,
     derive_status,
     format_duration,
     is_last_turn_errored,
     load_snapshot,
     room_name_for_directory,
 )
+from voffice.content import tool_content, turn_content
 
 NOW = 1_790_373_040_121
 MID = NOW - 7 * 3_600_000  # "tengah malam" buat test usage
@@ -312,10 +317,11 @@ def test_snapshot_activity_feed():
         ],
     )
     feed = s["activity"]
+    name_a, name_b = agent_name_for_session("sess_a"), agent_name_for_session("sess_b")
     assert [(r["room"], r["agent"], r["tool"], r["status"]) for r in feed] == [
-        ("teraflow", "T1", "Read", "running"),
-        ("voidlight", "V1", "Edit", "error"),
-        ("teraflow", "T1", "Bash", "ok"),
+        ("teraflow", name_a, "Read", "running"),
+        ("voidlight", name_b, "Edit", "error"),
+        ("teraflow", name_a, "Bash", "ok"),
     ]
     assert feed[0]["duration_ms"] is None
     assert feed[1]["duration_ms"] == 500
@@ -376,6 +382,80 @@ def test_snapshot_meta_errors_passed_through():
     s = snap(errors=["query tools gagal: no such table"], partial=True)
     assert s["meta"]["partial"] is True
     assert s["meta"]["errors"] == ["query tools gagal: no such table"]
+
+
+def test_agent_name_deterministic_per_session():
+    assert agent_name_for_session("sess_a") == agent_name_for_session("sess_a")
+    assert agent_name_for_session("sess_a") in AGENT_NAME_POOL
+
+
+def test_agent_name_uniqueness_falls_to_next_pool_entry():
+    pool = ["Alpha", "Beta", "Gamma"]
+    used: set = set()
+    first = agent_name_for_session("sess_a", pool, used)
+    used.add(first)
+    second = agent_name_for_session("sess_b", pool, used)
+    used.add(second)
+    third = agent_name_for_session("sess_c", pool, used)
+    assert len({first, second, third}) == 3
+    assert {first, second, third} <= set(pool)
+
+
+def test_snapshot_assigns_unique_names_to_all_agents():
+    s = snap(
+        sessions=[
+            sess("parent", directory="C:/w/teraflow", created=NOW - 1000, updated=NOW),
+            sess("sub1", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+            sess("other", directory="C:/w/voidlight", created=NOW, updated=NOW),
+        ],
+    )
+    names = []
+    for r in s["rooms"]:
+        for a in r["agents"]:
+            names.append(a["name"])
+            for sub in a["subagents"]:
+                names.append(sub["name"])
+    assert len(names) == 3
+    assert len(set(names)) == 3
+    assert set(names) <= set(AGENT_NAME_POOL)
+
+
+def test_derive_role_from_latest_model_usage():
+    models = [
+        model(started_at=1000, agent="zcode-general-purpose"),
+        model(started_at=2000, agent="zcode-Explore"),
+    ]
+    assert derive_role(models) == "Explore"
+    assert derive_role([model(started_at=1000, agent="zcode-agent")]) == "agent"
+    assert derive_role([model(started_at=1000, agent=None), model(started_at=2000)]) is None
+    assert derive_role([]) is None
+
+
+def test_snapshot_role_and_sub_roles_summary():
+    s = snap(
+        sessions=[
+            sess("parent", directory="C:/w/teraflow", created=NOW - 1000, updated=NOW),
+            sess("sub1", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+            sess("sub2", directory="C:/w/teraflow", parent_id="parent", created=NOW, updated=NOW),
+        ],
+        models=[
+            model(session_id="parent", agent="zcode-agent", started_at=NOW - 1000),
+            model(session_id="sub1", agent="zcode-Explore", started_at=NOW - 1000),
+            model(session_id="sub2", agent="zcode-judge", started_at=NOW - 1000),
+        ],
+    )
+    parent = s["rooms"][0]["agents"][0]
+    assert parent["role"] == "agent"
+    assert parent["subagents"][0]["role"] == "Explore"
+    assert parent["subagents"][1]["role"] == "judge"
+    assert parent["sub_roles"] == {"Explore": 1, "judge": 1}
+
+
+def test_snapshot_no_role_when_model_usage_empty():
+    s = snap(sessions=[sess("sess_a", directory="C:/w/teraflow", created=NOW, updated=NOW)])
+    agent = s["rooms"][0]["agents"][0]
+    assert agent["role"] is None
+    assert agent["sub_roles"] == {}
 
 
 def test_load_snapshot_from_fixture_db(make_db, cfg):
@@ -446,3 +526,84 @@ def test_collector_loop_integration(make_db, cfg):
         time.sleep(0.01)
     c.stop()
     assert c.snapshot() is not None
+
+
+def test_tool_content_returns_input_output(make_db):
+    path = make_db(parts=[
+        part_row(id="p1", data={
+            "type": "tool", "callID": "call_1", "tool": "Bash",
+            "state": {"status": "completed", "input": {"command": "ls -la"},
+                      "output": "total 0"},
+        }),
+    ])
+    data = tool_content(path, "call_1")
+    assert data["kind"] == "tool"
+    assert data["tool"] == "Bash"
+    assert data["status"] == "completed"
+    assert json.loads(data["input"]["content"]) == {"command": "ls -la"}
+    assert data["output"]["content"] == "total 0"
+    assert data["output"]["truncated"] is False
+
+
+def test_tool_content_unknown_call(make_db):
+    path = make_db()
+    assert tool_content(path, "missing") is None
+
+
+def test_tool_content_truncated_at_cap(make_db):
+    path = make_db(parts=[
+        part_row(id="p1", data={
+            "type": "tool", "callID": "call_big", "tool": "Bash",
+            "state": {"status": "completed", "input": {"command": "x"},
+                      "output": "A" * 9000},
+        }),
+    ])
+    data = tool_content(path, "call_big")
+    assert data["output"]["truncated"] is True
+    assert len(data["output"]["content"]) == 5000
+    assert data["output"]["total_chars"] == 9000
+
+
+def test_turn_content_walks_message_chain(make_db):
+    path = make_db(
+        turns=[turn(session_id="sess_a", turn_id="t1", user_message_id="msg_u1")],
+        messages=[
+            msg(id="msg_u1", session_id="sess_a", role="user", time_created=100),
+            msg(id="msg_a1", session_id="sess_a", role="assistant", parent_id="msg_u1",
+                time_created=200),
+            msg(id="msg_u2", session_id="sess_a", role="user", parent_id="msg_a1",
+                time_created=300),
+        ],
+        parts=[
+            part_row(id="p1", message_id="msg_u1", data={"type": "text", "text": "jalankan tes"},
+                     sequence=0),
+            part_row(id="p2", message_id="msg_a1", data={"type": "text", "text": "selesai"},
+                     sequence=0),
+            part_row(id="p3", message_id="msg_a1", data={
+                "type": "tool", "callID": "call_9", "tool": "Bash",
+                "state": {"status": "completed", "input": {"command": "pytest"}, "output": "ok"},
+            }, sequence=1),
+            part_row(id="p4", message_id="msg_u2", data={"type": "text", "text": "turn berikutnya"},
+                     sequence=0),
+        ],
+    )
+    data = turn_content(path, "t1")
+    kinds = [(e["kind"], e.get("content") or e.get("tool")) for e in data["entries"]]
+    assert kinds == [("text", "jalankan tes"), ("text", "selesai"), ("tool", "Bash")]
+    assert data["entries"][2]["input"]["content"] == '{\n  "command": "pytest"\n}'
+    # pesan turn berikutnya tidak ikut
+    assert "turn berikutnya" not in json.dumps(data)
+
+
+def test_turn_content_unknown_turn(make_db):
+    path = make_db()
+    assert turn_content(path, "nope") is None
+
+
+def test_content_fail_soft_without_part_table(make_db):
+    path = make_db(drop_tables=("part", "message"),
+                   turns=[turn(session_id="sess_a", turn_id="t1", user_message_id="msg_u1")])
+    data = tool_content(path, "call_1")
+    assert "error" in data
+    data = turn_content(path, "t1")
+    assert "error" in data

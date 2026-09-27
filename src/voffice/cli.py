@@ -68,7 +68,7 @@ def cmd_run(args, config: dict) -> int:
     collector.start()
     static_dir = Path(__file__).parent / "static"
     print(f"voidlight-office di http://127.0.0.1:{config['server']['port']} (db: {db_path})")
-    run_server(collector, config, static_dir, open_browser=not args.no_open)
+    run_server(collector, config, static_dir, db_path=db_path, open_browser=not args.no_open)
     return 0
 
 

@@ -11,58 +11,94 @@
     --green: #22c55e; --yellow: #eab308; --gray: #64748b; --red: #ef4444; --accent: #38bdf8;
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.45 system-ui, "Segoe UI", sans-serif; }
-  .topbar { display: flex; align-items: center; gap: 18px; padding: 8px 16px; background: var(--panel-hi); border-bottom: 1px solid var(--line); }
-  .brand { font-weight: 700; letter-spacing: 2px; font-size: 12px; }
-  .stat { color: var(--muted); font-size: 12px; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  .topbar { display: flex; align-items: center; gap: 18px; padding: 10px 18px; background: var(--panel-hi); border-bottom: 1px solid var(--line); }
+  .brand { font-weight: 700; letter-spacing: 2px; font-size: 14px; }
+  .stat { color: var(--muted); font-size: 13px; }
   .stat b { color: var(--text); }
-  .age { margin-left: auto; color: var(--muted); font-size: 12px; }
-  .banner { padding: 6px 16px; font-size: 12px; display: none; }
+  .age { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .topbar-btn { background: var(--accent); color: #08101f; border: none; border-radius: 6px; padding: 3px 12px; font: 600 12px system-ui, sans-serif; cursor: pointer; }
+  .topbar-btn:hover { filter: brightness(1.15); }
+  .overlay { position: fixed; inset: 0; background: rgba(4, 9, 20, .85); z-index: 20; display: none; overflow: auto; padding: 24px; }
+  .overlay.open { display: block; }
+  .insights { max-width: 980px; margin: 0 auto; background: var(--panel-hi); border: 1px solid var(--accent); border-radius: 16px; padding: 20px; }
+  .insights h2 { margin: 0 0 4px; font-size: 17px; letter-spacing: 1px; }
+  .insights .sub { color: var(--muted); font-size: 12px; margin: 0 0 6px; }
+  .insights .close { position: sticky; top: 0; float: right; background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+  .scope-toggle { display: inline-flex; gap: 4px; margin: 10px 0 4px; }
+  .scope-toggle button { background: var(--inset); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 4px 14px; font: 12px system-ui, sans-serif; cursor: pointer; }
+  .scope-toggle button.on { color: #08101f; background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .rank h3 { margin: 18px 0 8px; font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .rank-row { position: relative; display: flex; align-items: baseline; gap: 10px; padding: 6px 10px; border-radius: 8px; font-size: 13px; color: var(--muted); overflow: hidden; margin-bottom: 3px; }
+  .rank-row .bar-bg { position: absolute; inset: 0; background: #16233f; z-index: 0; }
+  .rank-row .bar-fill { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(56, 189, 248, .25), rgba(56, 189, 248, .06)); z-index: 0; }
+  .rank-row > span { position: relative; z-index: 1; }
+  .rank-row .rank-no { color: var(--dim); width: 18px; flex-shrink: 0; }
+  .rank-row .who { color: var(--text); font-weight: 600; flex-shrink: 0; }
+  .rank-row .total { margin-left: auto; color: var(--text); font-weight: 700; flex-shrink: 0; }
+  .rank-row .detail { flex-shrink: 0; }
+  .rank-note { color: var(--dim); font-size: 11px; margin: 4px 0 0 10px; }
+  .insights .empty { color: var(--dim); text-align: center; padding: 40px; }
+  .banner { padding: 6px 16px; font-size: 13px; display: none; }
   .banner.show { display: block; }
   .banner.warn { background: #3a2f12; color: var(--yellow); }
   .banner.err { background: #3a1418; color: var(--red); }
-  main { display: grid; grid-template-columns: 1fr 320px; gap: 14px; padding: 14px; }
-  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; align-content: start; }
-  .room { background: linear-gradient(160deg, var(--panel-hi), var(--panel)); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
-  .room-head { cursor: pointer; display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; padding: 16px; }
+  .rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(480px, 1fr)); gap: 16px; align-content: start; }
+  .room { background: linear-gradient(160deg, var(--panel-hi), var(--panel)); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .room-head { cursor: pointer; display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
   .room-head:hover .room-name { color: var(--accent); }
   .room-head.active .room-name { color: var(--accent); }
   .room-name { font-weight: 600; }
-  .room-obj { color: var(--muted); font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .room-tok { color: var(--muted); font-size: 11px; flex-shrink: 0; }
-  .agents { display: flex; flex-direction: column; gap: 6px; }
-  .agent { display: flex; gap: 10px; align-items: center; background: var(--inset); border-radius: 8px; padding: 8px; cursor: pointer; }
+  .room-obj { color: var(--muted); font-size: 12.5px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .room-tok { color: var(--muted); font-size: 12.5px; flex-shrink: 0; }
+  .agents { display: flex; flex-direction: column; gap: 8px; }
+  .agent { display: flex; gap: 12px; align-items: center; background: var(--inset); border-radius: 10px; padding: 11px; cursor: pointer; }
   .agent:hover { outline: 1px solid var(--line); }
-  .avatar { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--gray); background: #22314f; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--gray); background: #22314f; display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; flex-shrink: 0; }
   .a-main { flex: 1; min-width: 0; }
   .a-tool { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .a-meta { color: var(--muted); font-size: 11px; }
-  .subs { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 3px 8px; cursor: pointer; }
-  .chip i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
-  .bar { height: 6px; background: #22314f; border-radius: 3px; overflow: hidden; margin-top: 10px; }
+  .a-meta { color: var(--muted); font-size: 12.5px; }
+  .subs { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--muted); background: var(--inset); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+  .chip.chip-open { color: var(--text); outline: 1px solid var(--line); }
+  .subs > div { flex: 1 1 100%; }
+  .role-badge { display: inline-block; font-size: 10.5px; line-height: 1.6; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); }
+  .sub-rows { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .sub-row { display: flex; align-items: center; gap: 8px; background: var(--inset); border-radius: 8px; padding: 5px 9px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .sub-row:hover { outline: 1px solid var(--line); }
+  .sub-row .who { color: var(--text); }
+  .sub-row .dot { margin-top: 0; }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .bar { height: 7px; background: #22314f; border-radius: 3px; overflow: hidden; margin-top: 12px; }
   .bar > div { height: 100%; border-radius: 3px; }
-  .feed { background: var(--inset); border: 1px solid var(--line); border-radius: 14px; padding: 10px; max-height: calc(100vh - 90px); overflow: auto; align-self: start; }
-  .feed h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  .feed { background: var(--inset); border: 1px solid var(--line); border-radius: 14px; padding: 12px; max-height: calc(100vh - 100px); overflow: auto; align-self: start; }
+  .feed h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
   .feed-title { color: var(--accent); }
-  .feed-row { display: flex; gap: 8px; align-items: flex-start; font-size: 11.5px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+  .feed-row { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; padding: 5px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
   .feed-row .who { color: var(--text); flex-shrink: 0; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; display: inline-block; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; display: inline-block; }
   .empty { color: var(--dim); padding: 60px 20px; text-align: center; }
-  .slideover { position: fixed; top: 0; right: 0; height: 100%; width: 400px; max-width: 90vw; background: var(--panel-hi); border-left: 1px solid var(--accent); padding: 16px; overflow: auto; transform: translateX(105%); transition: transform .15s; z-index: 10; }
+  .slideover { position: fixed; top: 0; right: 0; height: 100%; width: 440px; max-width: 90vw; background: var(--panel-hi); border-left: 1px solid var(--accent); padding: 16px; overflow: auto; transform: translateX(105%); transition: transform .15s; z-index: 10; }
   .slideover.open { transform: none; }
-  .slideover h2 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .slideover h2 { margin: 0 0 10px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
   .slideover .close { position: absolute; top: 10px; right: 12px; background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
-  .kv { color: var(--muted); font-size: 12px; margin: 3px 0; }
+  .kv { color: var(--muted); font-size: 13px; margin: 3px 0; }
   .kv b { color: var(--text); }
   .list { margin-top: 14px; }
-  .list h4 { margin: 0 0 6px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
-  .list-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+  .list h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .list-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; padding: 4px 0; color: var(--muted); border-bottom: 1px solid #14203a; }
+  .acc-head { cursor: pointer; }
+  .acc-head:hover { color: var(--text); }
+  .chev { color: var(--dim); }
+  .content-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin-top: 8px; }
+  .pre { margin: 4px 0 0; background: var(--inset); border-radius: 6px; padding: 8px; font: 11px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; color: var(--muted); }
 </style>
 </head>
 <body>
   <div class="topbar">
     <span class="brand">VOIDLIGHT OFFICE</span>
+    <button class="topbar-btn" onclick="openInsights()">Insights</button>
     <span class="stat" id="stat-working"></span>
     <span class="stat" id="stat-tokens"></span>
     <span class="age" id="age"></span>
@@ -73,12 +109,14 @@
     <div class="feed"><h3 id="feed-title">Activity</h3><div id="feed-rows"></div></div>
   </main>
   <div class="slideover" id="slideover"></div>
+  <div class="overlay" id="insights-overlay"></div>
 <script>
 "use strict";
 
 const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
+const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null };
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -105,24 +143,42 @@ function fmtAge(ts) {
 
 function sparkline(values, color) {
   if (!values || values.length < 2) return "";
-  const w = 60, h = 18, max = Math.max(...values, 1);
+  const w = 76, h = 20, max = Math.max(...values, 1);
   const pts = values
     .map((v, i) => `${(i / (values.length - 1) * w).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`)
     .join(" ");
   return `<svg width="${w}" height="${h}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5"/></svg>`;
 }
 
+function roleBadge(role) {
+  const c = role ? (ROLE_COLORS[role] || "var(--muted)") : "var(--dim)";
+  return `<span class="role-badge" style="color:${c};border-color:${c}">${esc(role || "?")}</span>`;
+}
+
+function subRow(s) {
+  const c = COLORS[s.status] || COLORS.quiet;
+  return `<div class="sub-row" onclick="openAgent('${esc(s.id)}')">
+    <span class="dot" style="background:${c}"></span>
+    <span class="who">${esc(s.name || s.short_name)}</span>
+    ${roleBadge(s.role)}
+    <span style="margin-left:auto">${fmtTokens(s.tokens)} tok</span>
+  </div>`;
+}
+
 function agentRow(a) {
   const c = COLORS[a.status] || COLORS.quiet;
-  const tool = a.current_tool || a.title || "tanpa aktivitas";
+  const title = a.title || "tanpa judul";
+  const meta = [a.name, a.status_detail, a.current_tool, a.model ?? "-",
+    fmtTokens(a.tokens) + " tok", a.tool_calls + " tools"]
+    .filter((x) => x != null && x !== "").map(esc).join(" &middot; ");
   const bar = a.target_budget > 0
     ? `<div class="bar"><div style="width:${Math.min(100, Math.round(a.target_used / a.target_budget * 100))}%;background:${c}"></div></div>`
     : "";
   return `<div class="agent" onclick="openAgent('${esc(a.id)}')">
-    <div class="avatar" style="border-color:${c}">${esc(a.short_name)}</div>
+    <div class="avatar" style="border-color:${c}">${esc((a.name || "?").slice(0, 2))}</div>
     <div class="a-main">
-      <div class="a-tool">${esc(tool)}</div>
-      <div class="a-meta">${esc(a.status_detail)} &middot; ${esc(a.model ?? "-")} &middot; ${fmtTokens(a.tokens)} tok &middot; ${a.tool_calls} tools</div>
+      <div class="a-tool">${esc(title)}</div>
+      <div class="a-meta">${meta}</div>
       ${bar}
     </div>
     ${sparkline(a.sparkline, c)}
@@ -134,8 +190,16 @@ function roomCard(r) {
   const agents = r.agents.map(agentRow).join("");
   const chips = r.agents
     .filter((a) => a.subagents.length)
-    .map((a) => `<span class="chip" onclick="openAgent('${esc(a.id)}')">${esc(a.short_name)} + ${a.subagents.length} sub
-      ${a.subagents.map((s) => `<i style="background:${COLORS[s.status] || COLORS.quiet}"></i>`).join("")}</span>`)
+    .map((a) => {
+      const open = STATE.expandedAgent === a.id;
+      const roles = Object.entries(a.sub_roles || {})
+        .map(([role, n]) => `<span style="color:${ROLE_COLORS[role] || "var(--muted)"}">${esc(role)} x${n}</span>`)
+        .join(" &middot; ");
+      return `<div>
+        <span class="chip ${open ? "chip-open" : ""}" onclick="toggleExpand('${esc(a.id)}')">${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""}</span>
+        ${open ? `<div class="sub-rows">${a.subagents.map(subRow).join("")}</div>` : ""}
+      </div>`;
+    })
     .join("");
   return `<div class="room">
     <div class="room-head ${active}" onclick="toggleFilter('${esc(r.name)}')">
@@ -208,27 +272,166 @@ function findAgent(id) {
   return null;
 }
 
-function openAgent(id) { STATE.selected = id; renderSlideover(); }
-function closeAgent() { STATE.selected = null; renderSlideover(); }
+function openAgent(id) { STATE.selected = id; STATE.openContent = null; renderSlideover(); }
+function closeAgent() { STATE.selected = null; STATE.openContent = null; renderSlideover(); }
 function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
+function toggleExpand(id) { STATE.expandedAgent = STATE.expandedAgent === id ? null : id; render(); }
+
+function openInsights() { STATE.insightsOpen = true; loadInsights(); }
+function closeInsights() { STATE.insightsOpen = false; renderInsights(); }
+function setInsightsScope(scope) { STATE.insightsScope = scope; loadInsights(); }
+
+function loadInsights() {
+  renderInsights();
+  fetch(`/api/intelligence?scope=${encodeURIComponent(STATE.insightsScope)}`)
+    .then((r) => (r.ok ? r.json() : { error: "http " + r.status }))
+    .then((d) => {
+      if (STATE.insightsOpen) { STATE.insightsData = d; renderInsights(); }
+    })
+    .catch((e) => {
+      if (STATE.insightsOpen) { STATE.insightsData = { error: String(e) }; renderInsights(); }
+    });
+}
+
+function fmtBytes(n) {
+  if (!n) return "0";
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + " GB";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + " MB";
+  if (n >= 1e3) return Math.round(n / 1e3) + " kB";
+  return n + " B";
+}
+
+function breakdown(d) {
+  return `in ${fmtTokens(d.input)} &middot; out ${fmtTokens(d.output)} &middot; cc ${fmtTokens(d.cache_creation)} &middot; cr ${fmtTokens(d.cache_read)}`;
+}
+
+function rankRows(rows, cols) {
+  return rows.map((r, i) => `<div class="rank-row">
+    <div class="bar-bg"></div><div class="bar-fill" style="width:${r.share || 0}%"></div>
+    <span class="rank-no">${i + 1}</span>
+    ${cols(r)}
+  </div>`).join("") || '<div class="empty">belum ada data</div>';
+}
+
+function renderInsights() {
+  const el = $("insights-overlay");
+  if (!STATE.insightsOpen) { el.className = "overlay"; el.innerHTML = ""; return; }
+  const scope = STATE.insightsScope;
+  const d = STATE.insightsData;
+  let body;
+  if (!d) body = '<div class="empty">menganalisa...</div>';
+  else if (d.error) body = `<div class="empty">${esc(d.error)}</div>`;
+  else {
+    const sessions = rankRows(d.sessions || [], (r) =>
+      `<span class="who">${esc(r.name)}</span><span>${esc(r.room)}${r.title ? " · " + esc(r.title) : ""}</span>
+       <span class="detail">${breakdown(r)}</span><span class="total">${fmtTokens(r.total)} tok</span>`);
+    const turns = rankRows(d.turns || [], (r) =>
+      `<span class="who">${esc(r.name)}</span><span>${new Date(r.at).toLocaleString()}</span>
+       <span class="detail">${breakdown(r)} · ${r.tool_calls} tool</span><span class="total">${fmtTokens(r.total)} tok</span>`);
+    const tools = rankRows(d.tools || [], (r) =>
+      `<span class="who">${esc(r.tool)}</span><span>${r.calls} calls</span>
+       <span class="detail">output ${fmtBytes(r.output_bytes)} · est ${fmtTokens(r.est_tokens)} tok</span><span class="total">${fmtBytes(r.output_bytes)}</span>`);
+    const partial = (d.errors || []).length
+      ? `<div class="rank-note">data parsial: ${esc(d.errors.join("; "))}</div>` : "";
+    body = `<div class="insights">
+      <button class="close" onclick="closeInsights()">x</button>
+      <h2>TOKEN INTELLIGENCE</h2>
+      <p class="sub">siapa yang paling boros, dan komposisinya: cc = cache creation (konteks makin gemuk), cr = cache read (hemat, bukan bengkak)</p>
+      <div class="scope-toggle">
+        <button class="${scope === "all" ? "on" : ""}" onclick="setInsightsScope('all')">All time</button>
+        <button class="${scope === "today" ? "on" : ""}" onclick="setInsightsScope('today')">Today</button>
+      </div>
+      ${partial}
+      <div class="rank"><h3>Session terboros</h3>${sessions}</div>
+      <div class="rank"><h3>Turn terboros</h3>${turns}</div>
+      <div class="rank"><h3>Tool paling boros (ranking by output bytes; est token = bagian token turn-nya)</h3>${tools}</div>
+    </div>`;
+  }
+  el.innerHTML = body;
+  el.className = "overlay open";
+}
+
+function toggleContent(kind, id) {
+  const key = kind + ":" + id;
+  if (STATE.openContent === key) { STATE.openContent = null; renderSlideover(); return; }
+  STATE.openContent = key;
+  renderSlideover();
+  if (!STATE.content[key]) {
+    fetch(`/api/content/${kind}/${encodeURIComponent(id)}`)
+      .then((r) => (r.ok ? r.json() : { error: "http " + r.status }))
+      .then((d) => { STATE.content[key] = d; if (STATE.openContent === key) renderSlideover(); })
+      .catch((e) => { STATE.content[key] = { error: String(e) }; if (STATE.openContent === key) renderSlideover(); });
+  }
+}
+
+function trimmedNote(part) {
+  return part && part.truncated ? `\n... dipotong dari ${part.total_chars} char` : "";
+}
+
+function contentBlock(data) {
+  if (!data) return '<pre class="pre">memuat...</pre>';
+  if (data.error) return `<pre class="pre">${esc(data.error)}</pre>`;
+  if (data.kind === "tool") {
+    return `<div class="content">
+      <div class="content-label">input</div>
+      <pre class="pre">${esc(data.input ? data.input.content : "(kosong)")}${trimmedNote(data.input)}</pre>
+      <div class="content-label">output</div>
+      <pre class="pre">${esc(data.output ? data.output.content : "(kosong)")}${trimmedNote(data.output)}</pre>
+    </div>`;
+  }
+  const entries = (data.entries || []).map((e) => {
+    if (e.kind === "tool") {
+      return `<div class="content-label">tool: ${esc(e.tool)} · ${esc(e.status ?? "?")}</div>
+        <pre class="pre">${esc(e.input ? e.input.content : "(kosong)")}</pre>
+        <pre class="pre">${esc(e.output ? e.output.content : "(kosong)")}</pre>`;
+    }
+    return `<div class="content-label">${esc(e.kind)}${e.role ? " · " + esc(e.role) : ""}</div>
+      <pre class="pre">${esc(e.content ?? "")}</pre>`;
+  }).join("");
+  return `<div class="content">${entries || '<div class="kv">kosong</div>'}</div>`;
+}
 
 function renderSlideover() {
   const el = $("slideover");
   const a = STATE.selected && findAgent(STATE.selected);
   if (!a) { el.className = "slideover"; el.innerHTML = ""; return; }
   const c = COLORS[a.status] || COLORS.quiet;
-  const turns = (a.turns || []).slice().reverse().map((t) =>
-    `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span><span>${fmtTokens(t.output_tokens)} tok</span></div>`
-  ).join("");
-  const tools = (a.tools || []).slice().reverse().map((t) =>
-    `<div class="list-row"><span>${esc(t.tool)}</span><span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""}</span></div>`
-  ).join("");
+  const turns = (a.turns || []).slice().reverse().map((t) => {
+    if (!t.turn_id) {
+      return `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span><span>${fmtTokens(t.output_tokens)} tok</span></div>`;
+    }
+    const key = "turn:" + t.turn_id;
+    const open = STATE.openContent === key;
+    return `<div>
+      <div class="list-row acc-head" onclick="toggleContent('turn', '${esc(t.turn_id)}')">
+        <span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span>
+        <span>${fmtTokens(t.output_tokens)} tok <span class="chev">${open ? "▾" : "▸"}</span></span>
+      </div>
+      ${open ? contentBlock(STATE.content[key]) : ""}
+    </div>`;
+  }).join("");
+  const tools = (a.tools || []).slice().reverse().map((t) => {
+    if (!t.call_id) {
+      return `<div class="list-row"><span>${esc(t.tool)}</span><span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""}</span></div>`;
+    }
+    const key = "tool:" + t.call_id;
+    const open = STATE.openContent === key;
+    return `<div>
+      <div class="list-row acc-head" onclick="toggleContent('tool', '${esc(t.call_id)}')">
+        <span>${esc(t.tool)}</span>
+        <span>${t.status}${t.duration_ms != null ? " &middot; " + Math.round(t.duration_ms / 1000) + "s" : ""} <span class="chev">${open ? "▾" : "▸"}</span></span>
+      </div>
+      ${open ? contentBlock(STATE.content[key]) : ""}
+    </div>`;
+  }).join("");
   const models = Object.entries(a.models || {})
     .map(([m, n]) => `<div class="list-row"><span>${esc(m)}</span><span>${fmtTokens(n)} tok</span></div>`).join("");
   const pct = a.target_budget > 0 ? Math.min(100, Math.round(a.target_used / a.target_budget * 100)) : null;
   el.innerHTML = `
     <button class="close" onclick="closeAgent()">x</button>
-    <h2><span class="avatar" style="border-color:${c}">${esc(a.short_name)}</span>${esc(a.title || a.short_name)}</h2>
+    <h2><span class="avatar" style="border-color:${c}">${esc((a.name || "?").slice(0, 2))}</span>${esc(a.title || "tanpa judul")}</h2>
+    <div class="kv">agent: <b>${esc(a.name || a.short_name)}</b> &middot; ${esc(a.short_name ?? "")}</div>
+    <div class="kv">role: ${roleBadge(a.role)}</div>
     <div class="kv">status: <b>${esc(a.status_detail)}</b></div>
     <div class="kv">model: ${esc(a.model ?? "-")}</div>
     <div class="kv">token total: <b>${fmtTokens(a.tokens)}</b> &middot; ${a.tool_calls} tool calls</div>
@@ -237,7 +440,8 @@ function renderSlideover() {
       <div class="kv">${fmtTokens(a.target_used)} / ${fmtTokens(a.target_budget)} tok (${pct}%)</div>` : ""}
     <div class="list"><h4>Turn terakhir</h4>${turns || '<div class="kv">kosong</div>'}</div>
     <div class="list"><h4>Tool calls</h4>${tools || '<div class="kv">kosong</div>'}</div>
-    <div class="list"><h4>Per model</h4>${models || '<div class="kv">kosong</div>'}</div>`;
+    <div class="list"><h4>Per model</h4>${models || '<div class="kv">kosong</div>'}</div>
+    ${a.subagents && a.subagents.length ? `<div class="list"><h4>Subagents (${a.subagents.length})</h4><div class="sub-rows">${a.subagents.map(subRow).join("")}</div></div>` : ""}`;
   el.className = "slideover open";
 }
 
@@ -265,7 +469,12 @@ async function tick() {
   render();
 }
 
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAgent(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closeAgent();
+    closeInsights();
+  }
+});
 setInterval(tick, 3000);
 setInterval(renderAge, 1000);
 tick();

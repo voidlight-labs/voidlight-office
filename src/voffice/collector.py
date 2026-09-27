@@ -1,5 +1,6 @@
 """Collector: query db ZCode read-only + fungsi murni agregasi snapshot."""
 
+import hashlib
 import sqlite3
 import threading
 import time
@@ -7,6 +8,13 @@ from datetime import datetime
 from pathlib import Path
 
 WORKSPACE_DIRNAME = ".zcode/workspace"
+
+AGENT_NAME_POOL = [
+    "Andra", "Bayu", "Citra", "Dewi", "Eka", "Fajar", "Gita", "Hana",
+    "Ika", "Jaya", "Kiran", "Luna", "Maya", "Nia", "Oka", "Putri",
+    "Rani", "Sari", "Teguh", "Umar", "Vina", "Wulan", "Yoga", "Zaki",
+    "Aruna", "Binar", "Cakra", "Damar", "Elang", "Gemilang",
+]
 
 
 def room_name_for_directory(directory: str | None, home: str | None) -> str:
@@ -36,6 +44,29 @@ def format_duration(ms: int | None) -> str:
         return f"{m}m {s}s" if s else f"{m}m"
     h, m = divmod(m, 60)
     return f"{h}h {m}m"
+
+
+def agent_name_for_session(session_id: str, pool: list[str] = AGENT_NAME_POOL,
+                           used: frozenset | set = frozenset()) -> str:
+    """Nama agent deterministik dari session_id; kalau sudah dipakai, geser ke nama berikutnya."""
+    start = int(hashlib.sha1(session_id.encode()).hexdigest(), 16) % len(pool)
+    for offset in range(len(pool)):
+        name = pool[(start + offset) % len(pool)]
+        if name not in used:
+            return name
+    return pool[start]
+
+
+ROLE_PREFIX = "zcode-"
+
+
+def derive_role(models: list) -> str | None:
+    """Role agent dari model_usage.agent terakhir yang terisi, tanpa prefix zcode-."""
+    for row in sorted(models, key=lambda r: r.get("started_at") or 0, reverse=True):
+        raw = row.get("agent")
+        if raw:
+            return raw[len(ROLE_PREFIX):] if raw.startswith(ROLE_PREFIX) else raw
+    return None
 
 
 def _row_ts(row: dict) -> int | None:
@@ -118,6 +149,8 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
     return {
         "id": session["id"],
         "title": session.get("title"),
+        "name": None,
+        "role": derive_role(models),
         "short_name": None,
         "parent_id": session.get("parent_id"),
         "status": status,
@@ -133,13 +166,14 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
         "target_budget": (target.get("token_budget") or 0) if target else 0,
         "turns": [
             {"at": t.get("started_at"), "output_tokens": t.get("output_tokens") or 0,
-             "status": _status_of(t.get("status"))}
+             "status": _status_of(t.get("status")), "turn_id": t.get("turn_id"),
+             "user_message_id": t.get("user_message_id")}
             for t in turns[-10:]
         ],
         "tools": [
             {"tool": t.get("tool_name"), "duration_ms": t.get("duration_ms"),
              "status": TOOL_STATUS_MAP.get(t.get("status"), "running"),
-             "at": t.get("started_at")}
+             "at": t.get("started_at"), "call_id": t.get("tool_call_id")}
             for t in tools[-10:]
         ],
         "models": per_model,
@@ -207,6 +241,7 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
     room_dicts = []
     working_count = 0
     agent_by_id: dict = {}
+    used_names: set = set()
     for display, members in grouped.items():
         members = sorted(members, key=lambda s: s.get("time_created") or 0)
         initial = display[:1].upper()
@@ -220,6 +255,8 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
                 now_ms=now_ms, status_cfg=status_cfg,
             )
             agent["short_name"] = f"{initial}{i}"
+            agent["name"] = agent_name_for_session(s["id"], used=used_names)
+            used_names.add(agent["name"])
             agent_by_id[s["id"]] = agent
 
         tops, subs = [], []
@@ -233,6 +270,12 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
             parent = agent_by_id.get(a["parent_id"])
             if parent is not None:
                 parent["subagents"].append(a)
+        for top in tops:
+            counts: dict = {}
+            for sub in top["subagents"]:
+                if sub.get("role"):
+                    counts[sub["role"]] = counts.get(sub["role"], 0) + 1
+            top["sub_roles"] = counts
 
         everyone = _flatten_agents(tops)
         working_count += sum(1 for a in everyone if a["status"] == "kerja")
@@ -264,7 +307,7 @@ def build_snapshot(sessions, targets, turns, models, tools, *,
             for t in session_tools.get(a["id"], []):
                 feed.append({
                     "room": r["name"],
-                    "agent": a["short_name"],
+                    "agent": a["name"] or a["short_name"],
                     "tool": t.get("tool_name"),
                     "status": TOOL_STATUS_MAP.get(t.get("status"), "running"),
                     "duration_ms": t.get("duration_ms"),
@@ -302,16 +345,17 @@ QUERIES = {
         "time_created, time_updated FROM session_target ORDER BY time_updated"
     ),
     "turns": (
-        "SELECT session_id, turn_id, status, started_at, completed_at, output_tokens, "
-        "computed_total_tokens, error_type, cancelled_by_user FROM turn_usage ORDER BY started_at"
+        "SELECT session_id, turn_id, user_message_id, status, started_at, completed_at, "
+        "output_tokens, computed_total_tokens, error_type, cancelled_by_user "
+        "FROM turn_usage ORDER BY started_at"
     ),
     "models": (
-        "SELECT session_id, model_id, provider_id, started_at, completed_at, "
+        "SELECT session_id, model_id, provider_id, agent, started_at, completed_at, "
         "computed_total_tokens, error_type, cancelled_by_user FROM model_usage ORDER BY started_at"
     ),
     "tools": (
-        "SELECT session_id, turn_id, tool_name, status, started_at, completed_at, duration_ms, "
-        "error_type, cancelled_by_user FROM tool_usage ORDER BY started_at"
+        "SELECT session_id, turn_id, tool_call_id, tool_name, status, started_at, completed_at, "
+        "duration_ms, error_type, cancelled_by_user FROM tool_usage ORDER BY started_at"
     ),
 }
 
