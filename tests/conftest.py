@@ -169,26 +169,55 @@ def make_db(tmp_path):
         path = tmp_path / name
         con = sqlite3.connect(path)
         con.executescript(SCHEMA)
+        # literal-only di dalam con.execute/executemany: scanner menandai SQL
+        # yang dibangun dinamis, dan whitelist eksplisit ini juga fail-fast.
         for table in drop_tables:
-            con.execute(f"DROP TABLE {table}")
+            if table == "session":
+                con.execute("DROP TABLE session")
+            elif table == "session_target":
+                con.execute("DROP TABLE session_target")
+            elif table == "turn_usage":
+                con.execute("DROP TABLE turn_usage")
+            elif table == "model_usage":
+                con.execute("DROP TABLE model_usage")
+            elif table == "tool_usage":
+                con.execute("DROP TABLE tool_usage")
+            elif table == "message":
+                con.execute("DROP TABLE message")
+            elif table == "part":
+                con.execute("DROP TABLE part")
+            else:
+                raise ValueError(f"tabel tidak dikenal: {table}")
 
-        def insert(table, columns, rows):
-            if not rows:
-                return
-            cols = ", ".join(columns)
-            marks = ", ".join("?" * len(columns))
+        if sessions:
             con.executemany(
-                f"INSERT INTO {table} ({cols}) VALUES ({marks})",
-                [[row.get(c) for c in columns] for row in rows],
-            )
+                "INSERT INTO session (id, parent_id, directory, title, time_created, time_updated, time_archived) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in SESSION_COLS] for row in sessions])
+        if targets:
+            con.executemany(
+                "INSERT INTO session_target (session_id, target_id, objective, status, token_budget, tokens_used, time_created, time_updated) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in TARGET_COLS] for row in targets])
+        if turns:
+            con.executemany(
+                "INSERT INTO turn_usage (session_id, turn_id, status, started_at, completed_at, input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, computed_total_tokens, tool_call_count, duration_ms, user_message_id, error_type, cancelled_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in TURN_COLS] for row in turns])
+        if models:
+            con.executemany(
+                "INSERT INTO model_usage (session_id, model_id, provider_id, agent, started_at, completed_at, computed_total_tokens, error_type, cancelled_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in MODEL_COLS] for row in models])
+        if tools:
+            con.executemany(
+                "INSERT INTO tool_usage (session_id, turn_id, tool_call_id, tool_name, status, started_at, completed_at, duration_ms, exit_code, output_bytes, stdout_bytes, stderr_bytes, error_type, cancelled_by_user) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in TOOL_COLS] for row in tools])
+        if messages:
+            con.executemany(
+                "INSERT INTO message (id, session_id, time_created, time_updated, data, sequence) VALUES (?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in MESSAGE_COLS] for row in messages])
+        if parts:
+            con.executemany(
+                "INSERT INTO part (id, message_id, session_id, time_created, time_updated, data, sequence) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [[row.get(c) for c in PART_COLS] for row in parts])
 
-        insert("session", SESSION_COLS, sessions)
-        insert("session_target", TARGET_COLS, targets)
-        insert("turn_usage", TURN_COLS, turns)
-        insert("model_usage", MODEL_COLS, models)
-        insert("tool_usage", TOOL_COLS, tools)
-        insert("message", MESSAGE_COLS, messages)
-        insert("part", PART_COLS, parts)
         con.commit()
         con.close()
         return path

@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -7,7 +8,9 @@ import pytest
 from conftest import sess
 from voffice.cli import main
 
-NOW = 1_790_373_040_121
+# Dinamis dari jam real: CLI snapshot pakai clock asli + TTL 24 jam,
+# timestamp beku bikin sesi fixture terbuang begitu waktu berjalan.
+NOW = int(time.time() * 1000)
 
 
 def test_snapshot_command_prints_json(make_db, capsys, tmp_path, monkeypatch):

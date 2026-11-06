@@ -76,9 +76,12 @@ def test_content_endpoints_without_db(tmp_path):
 
 
 def test_intelligence_endpoint(make_db):
+    import time
     from datetime import datetime
 
-    now = 1_790_373_040_121
+    # Dinamis dari jam real: scope "today" intelligence pakai tengah malam
+    # lokal saat ini, timestamp beku bikin sesi today terbuang begitu hari jalan.
+    now = int(time.time() * 1000)
     mid = int(datetime.fromtimestamp(now / 1000)
               .replace(hour=0, minute=0, second=0, microsecond=0).timestamp() * 1000)
     db = make_db(
