@@ -87,6 +87,12 @@ def is_last_turn_errored(turns: list) -> bool:
     return last.get("error_type") is not None or bool(last.get("cancelled_by_user"))
 
 
+def count_errors(turns: list, tools: list) -> int:
+    """Jumlah turn/tool gagal (error_type terisi); cancel user tidak dihitung error."""
+    return (sum(1 for t in turns if t.get("error_type"))
+            + sum(1 for t in tools if t.get("error_type")))
+
+
 def derive_status(last_activity_ms: int | None, errored: bool, now_ms: int,
                   working_max_seconds: int, idle_max_seconds: int) -> tuple[str, str]:
     if errored:
@@ -156,6 +162,8 @@ def build_agent(session: dict, turns: list, models: list, tools: list, targets: 
         "status": status,
         "status_detail": detail,
         "last_activity": activity_ts,
+        "age_ms": (now_ms - session["time_created"]) if session.get("time_created") is not None else None,
+        "error_count": count_errors(turns, tools),
         "current_tool": current_tool_line(tools, turns),
         "model": models[-1].get("model_id") if models else None,
         "tokens": sum(t.get("computed_total_tokens") or 0 for t in turns),

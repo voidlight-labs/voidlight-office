@@ -22,7 +22,10 @@ from voffice.collector import (
 )
 from voffice.content import tool_content, turn_content
 
-NOW = 1_790_373_040_121
+# Dinamis dari jam real: jalur yang pakai clock asli (Collector.tick, CLI,
+# intelligence "today") tidak boleh membekukan timestamp, kalau tidak sesi
+# fixture melewati TTL 24 jam begitu waktu berjalan (time-bomb test).
+NOW = int(time.time() * 1000)
 MID = NOW - 7 * 3_600_000  # "tengah malam" buat test usage
 HOME = "C:\\Users\\khayren"
 STATUS_CFG = {"working_max_seconds": 90, "idle_max_seconds": 900, "agent_ttl_hours": 24}
@@ -172,6 +175,32 @@ def test_build_agent_sparkline_caps_20_and_orders_by_started_at():
     turns = [turn(turn_id=f"t{i}", started_at=NOW - (30 - i) * 1000, output_tokens=i) for i in range(25)]
     agent = build_agent(sess(), turns, [], [], [], now_ms=NOW, status_cfg=STATUS_CFG)
     assert agent["sparkline"] == list(range(5, 25))
+
+
+def test_build_agent_counts_errors_excluding_cancel():
+    turns = [turn(turn_id="t1", error_type="boom", started_at=NOW - 60_000),
+             turn(turn_id="t2", cancelled_by_user=1, started_at=NOW - 40_000)]
+    tools = [tool(tool_call_id="c1", error_type="fail", started_at=NOW - 30_000),
+             tool(tool_call_id="c2", cancelled_by_user=1, started_at=NOW - 20_000)]
+    agent = build_agent(sess(), turns, [], tools, [], now_ms=NOW, status_cfg=STATUS_CFG)
+    assert agent["error_count"] == 2
+
+
+def test_build_agent_error_count_zero_when_clean():
+    agent = build_agent(sess(), [], [], [], [], now_ms=NOW, status_cfg=STATUS_CFG)
+    assert agent["error_count"] == 0
+
+
+def test_build_agent_age_ms_from_time_created():
+    agent = build_agent(sess(created=NOW - 3_723_000), [], [], [], [], now_ms=NOW, status_cfg=STATUS_CFG)
+    assert agent["age_ms"] == 3_723_000
+
+
+def test_build_agent_age_ms_none_without_time_created():
+    s = sess()
+    s["time_created"] = None
+    agent = build_agent(s, [], [], [], [], now_ms=NOW, status_cfg=STATUS_CFG)
+    assert agent["age_ms"] is None
 
 
 def test_build_agent_uses_latest_target():
