@@ -41,45 +41,45 @@
 
 ### Task 2: Split static frontend (Visual 7)
 
-- [ ] Ekstrak CSS → `src/voffice/static/styles.css`, JS → `src/voffice/static/app.js`.
-- [ ] `index.html` jadi markup + `<link rel="stylesheet" href="styles.css">` + `<script src="app.js"></script>`.
-- [ ] Verifikasi identitas perilaku (server 8789 + halaman render normal).
+- [x] Ekstrak CSS → `src/voffice/static/styles.css`, JS → `src/voffice/static/app.js`.
+- [x] `index.html` jadi markup + `<link rel="stylesheet" href="styles.css">` + `<script src="app.js"></script>`.
+- [x] Verifikasi identitas perilaku (server 8789 + halaman render normal).
 
 ### Task 3: Lookup subagent rekursif (Fitur 2)
 
-- [ ] `findAgent` di app.js telusuri subagents rekursif.
+- [x] `findAgent` di app.js telusuri subagents rekursif.
 
 ### Task 4: Field backend error_count + age_ms (Fitur 3-4)
 
-- [ ] `build_agent` (src/voffice/collector.py): tambah `error_count`, `age_ms`.
-- [ ] Test baru di `tests/test_collector.py`: hitungan turn error + tool error, cancelled tidak terhitung, age_ms normal, age_ms None tanpa time_created.
+- [x] `build_agent` (src/voffice/collector.py): tambah `error_count`, `age_ms`.
+- [x] Test baru di `tests/test_collector.py`: hitungan turn error + tool error, cancelled tidak terhitung, age_ms normal, age_ms None tanpa time_created.
 
 ### Task 5: Frontend preserve state + chip error + durasi (Fitur 1, 3, 4)
 
-- [ ] `tick()`: skip render jika signature snapshot identik.
-- [ ] `render()`: simpan + restore scroll window/feed/slideover.
-- [ ] `agentRow`: chip `N err` (hanya jika > 0) + durasi sesi di meta; slideover: kv `umur` + `error`.
+- [x] `tick()`: skip render jika signature snapshot identik.
+- [x] `render()`: simpan + restore scroll window/feed/slideover.
+- [x] `agentRow`: chip `N err` (hanya jika > 0) + durasi sesi di meta; slideover: kv `umur` + `error`.
 
 ### Task 6: Visual pass (V1-V6)
 
-- [ ] Token tipografi + naikkan ukuran minimum; tabular-nums global.
-- [ ] Role badge tinted alpha; merah eksklusif error.
-- [ ] Responsive: `minmax(min(480px, 100%), 1fr)` + breakpoint 980px + topbar wrap.
-- [ ] Animasi: pulse dot/avatar kerja, fade-in card + konten accordion, skeleton shimmer konten.
-- [ ] Skeleton saat belum ada snapshot; empty state rooms.
+- [x] Token tipografi + naikkan ukuran minimum; tabular-nums global.
+- [x] Role badge tinted alpha; merah eksklusif error.
+- [x] Responsive: `minmax(min(480px, 100%), 1fr)` + breakpoint 980px + topbar wrap.
+- [x] Animasi: pulse dot/avatar kerja, fade-in card + konten accordion, skeleton shimmer konten.
+- [x] Skeleton saat belum ada snapshot; empty state rooms.
 
 ### Task 7: Verifikasi Wave 1
 
-- [ ] pytest penuh hijau.
-- [ ] Server 8789 + Playwright: desktop + sempit, accordion/state lintas tick, screenshot.
+- [x] pytest penuh hijau.
+- [x] Server 8789 + Playwright: desktop + sempit, accordion/state lintas tick, screenshot.
 
 ### Task 8: Commit + push Wave 1 → PR #3
 
 ### Task 9: Wave 2 implement + verifikasi + push
 
-- [ ] Name pool + suffix deterministik + test.
-- [ ] Search global client-side.
-- [ ] Judul tab dinamis.
-- [ ] Persist filterRoom/expandedAgent ke localStorage.
-- [ ] Hygiene: `FastAPI(docs_url=None, redoc_url=None)`, update README.
-- [ ] pytest + Playwright + push.
+- [x] Name pool + suffix deterministik + test.
+- [x] Search global client-side.
+- [x] Judul tab dinamis.
+- [x] Persist filterRoom/expandedAgent ke localStorage.
+- [x] Hygiene: `FastAPI(docs_url=None, redoc_url=None)`, update README.
+- [x] pytest + Playwright + push.
