@@ -10,7 +10,10 @@ body { margin: 0; background: var(--bg); color: var(--text); font: var(--fs-base
 .brand { font-weight: 700; letter-spacing: 2px; font-size: 14px; }
 .stat { color: var(--muted); font-size: var(--fs-md); }
 .stat b { color: var(--text); }
-.age { margin-left: auto; color: var(--muted); font-size: var(--fs-md); }
+.search { margin-left: auto; width: 250px; background: var(--inset); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font: var(--fs-sm) system-ui, sans-serif; }
+.search::placeholder { color: var(--dim); }
+.search:focus { outline: 1px solid var(--accent); outline-offset: -1px; }
+.age { color: var(--muted); font-size: var(--fs-md); }
 .topbar-btn { background: var(--accent); color: #08101f; border: none; border-radius: 6px; padding: 3px 12px; font: 600 var(--fs-sm) system-ui, sans-serif; cursor: pointer; }
 .topbar-btn:hover { filter: brightness(1.15); }
 .overlay { position: fixed; inset: 0; background: rgba(4, 9, 20, .85); z-index: 20; display: none; overflow: auto; padding: 24px; }

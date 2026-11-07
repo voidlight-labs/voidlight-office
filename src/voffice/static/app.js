@@ -3,7 +3,7 @@
 const COLORS = { kerja: "#22c55e", idle: "#eab308", quiet: "#64748b", error: "#ef4444" };
 const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null, query: "" };
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -126,6 +126,11 @@ function skeletonCard() {
   </div>`;
 }
 
+function agentMatches(a, q) {
+  return [a.name, a.short_name, a.title, a.objective, a.current_tool]
+    .some((v) => v && String(v).toLowerCase().includes(q));
+}
+
 function renderRooms() {
   if (!STATE.snap) { $("rooms").innerHTML = skeletonCard() + skeletonCard(); return; }
   const rooms = STATE.snap.rooms;
@@ -136,7 +141,27 @@ function renderRooms() {
       <div class="empty-sub">mulai sesi ZCode, dashboard bakal ngisi sendiri</div></div>`;
     return;
   }
-  const list = STATE.filterRoom ? rooms.filter((r) => r.name === STATE.filterRoom) : rooms;
+  // filter room yang tersimpan bisa basi (room sudah tidak ada): reset
+  if (STATE.filterRoom && !rooms.some((r) => r.name === STATE.filterRoom)) {
+    STATE.filterRoom = null;
+    saveViewState();
+  }
+  let list = STATE.filterRoom ? rooms.filter((r) => r.name === STATE.filterRoom) : rooms.slice();
+  const q = STATE.query;
+  if (q) {
+    list = list
+      .map((r) => {
+        if (r.name.toLowerCase().includes(q)) return r;  // nama room match: tampil utuh
+        const agents = r.agents.filter((a) => agentMatches(a, q)
+          || (a.subagents || []).some((s) => agentMatches(s, q)));
+        return { ...r, agents };
+      })
+      .filter((r) => r.name.toLowerCase().includes(q) || r.agents.length > 0);
+  }
+  if (!list.length) {
+    $("rooms").innerHTML = `<div class="empty"><div class="empty-title">gak ada yang cocok buat "${esc(STATE.query)}"</div></div>`;
+    return;
+  }
   $("rooms").innerHTML = list.map(roomCard).join("");
 }
 
@@ -147,20 +172,25 @@ function renderFeed() {
       () => '<div class="feed-row"><div class="skeleton" style="height:10px;width:85%"></div></div>').join("");
     return;
   }
-  const rows = STATE.snap.activity
+  let rows = STATE.snap.activity
     .filter((x) => !STATE.filterRoom || x.room === STATE.filterRoom);
+  if (STATE.query) {
+    rows = rows.filter((x) => `${x.room}/${x.agent} ${x.tool}`.toLowerCase().includes(STATE.query));
+  }
   $("feed-rows").innerHTML = rows.map((x) => {
     const c = STATUS_DOT[x.status] || "var(--gray)";
     const pulse = x.status === "running" ? " pulse-running" : "";
     const d = x.duration_ms != null ? ` (${Math.round(x.duration_ms / 1000)}s)` : "";
     return `<div class="feed-row"><span class="dot${pulse}" style="background:${c}"></span>
       <span class="who">${esc(x.room)}/${esc(x.agent)}</span><span>${esc(x.tool)}${d}</span></div>`;
-  }).join("") || '<div class="kv">belum ada aktivitas</div>';
+  }).join("") || (STATE.query ? '<div class="kv">gak ada aktivitas yang cocok</div>'
+    : '<div class="kv">belum ada aktivitas</div>');
 }
 
 function renderTopbar() {
   const u = STATE.snap?.usage;
   $("stat-working").innerHTML = u ? `<b>${u.working_count}</b> agent kerja` : "";
+  document.title = u && u.working_count > 0 ? `(${u.working_count}) Voidlight Office` : "Voidlight Office";
   if (!u) { $("stat-tokens").innerHTML = ""; return; }
   const models = Object.entries(u.per_model || {})
     .map(([m, n]) => `${esc(m)} ${fmtTokens(n)}`).join(" &middot; ");
@@ -201,8 +231,28 @@ function findAgent(id) {
 
 function openAgent(id) { STATE.selected = id; STATE.openContent = null; renderSlideover(); }
 function closeAgent() { STATE.selected = null; STATE.openContent = null; renderSlideover(); }
-function toggleFilter(name) { STATE.filterRoom = STATE.filterRoom === name ? null : name; render(); }
-function toggleExpand(id) { STATE.expandedAgent = STATE.expandedAgent === id ? null : id; render(); }
+function toggleFilter(name) {
+  STATE.filterRoom = STATE.filterRoom === name ? null : name;
+  saveViewState();
+  render();
+}
+function toggleExpand(id) {
+  STATE.expandedAgent = STATE.expandedAgent === id ? null : id;
+  saveViewState();
+  render();
+}
+
+function onSearch(value) {
+  STATE.query = value.trim().toLowerCase();
+  render();
+}
+
+function saveViewState() {
+  try {
+    localStorage.setItem("voffice.filterRoom", STATE.filterRoom || "");
+    localStorage.setItem("voffice.expandedAgent", STATE.expandedAgent || "");
+  } catch (e) { /* penyimpanan tak tersedia: abaikan */ }
+}
 
 function openInsights() { STATE.insightsOpen = true; loadInsights(); }
 function closeInsights() { STATE.insightsOpen = false; renderInsights(); }
@@ -414,6 +464,10 @@ document.addEventListener("keydown", (e) => {
     closeInsights();
   }
 });
+try {
+  STATE.filterRoom = localStorage.getItem("voffice.filterRoom") || null;
+  STATE.expandedAgent = localStorage.getItem("voffice.expandedAgent") || null;
+} catch (e) { /* penyimpanan tak tersedia: pakai default */ }
 setInterval(tick, 3000);
 setInterval(renderAge, 1000);
 tick();
