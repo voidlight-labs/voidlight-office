@@ -14,6 +14,8 @@ AGENT_NAME_POOL = [
     "Ika", "Jaya", "Kiran", "Luna", "Maya", "Nia", "Oka", "Putri",
     "Rani", "Sari", "Teguh", "Umar", "Vina", "Wulan", "Yoga", "Zaki",
     "Aruna", "Binar", "Cakra", "Damar", "Elang", "Gemilang",
+    "Arka", "Bagas", "Danu", "Garda", "Halim", "Karsa", "Pandu", "Salsa",
+    "Tirta", "Wijaya",
 ]
 
 
@@ -48,13 +50,16 @@ def format_duration(ms: int | None) -> str:
 
 def agent_name_for_session(session_id: str, pool: list[str] = AGENT_NAME_POOL,
                            used: frozenset | set = frozenset()) -> str:
-    """Nama agent deterministik dari session_id; kalau sudah dipakai, geser ke nama berikutnya."""
-    start = int(hashlib.sha1(session_id.encode()).hexdigest(), 16) % len(pool)
+    """Nama agent deterministik dari session_id; kalau sudah dipakai, geser ke nama berikutnya.
+
+    Pool habis: nama + suffix 4 char awal session_id, tetap deterministik.
+    """
+    start = int(hashlib.sha256(session_id.encode()).hexdigest(), 16) % len(pool)
     for offset in range(len(pool)):
         name = pool[(start + offset) % len(pool)]
         if name not in used:
             return name
-    return pool[start]
+    return f"{pool[start]} {session_id[:4]}"
 
 
 ROLE_PREFIX = "zcode-"

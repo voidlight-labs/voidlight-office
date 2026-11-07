@@ -430,6 +430,19 @@ def test_agent_name_uniqueness_falls_to_next_pool_entry():
     assert {first, second, third} <= set(pool)
 
 
+def test_agent_name_suffix_when_pool_exhausted():
+    pool = ["Alpha", "Beta", "Gamma"]
+    used = {"Alpha", "Beta", "Gamma"}
+    name = agent_name_for_session("sess_z", pool, used)
+    assert name.endswith(" sess")
+    assert name.split()[0] in pool
+    assert agent_name_for_session("sess_z", pool, used) == name  # deterministik
+
+
+def test_agent_name_pool_extended_40():
+    assert len(AGENT_NAME_POOL) == 40
+
+
 def test_snapshot_assigns_unique_names_to_all_agents():
     s = snap(
         sessions=[
