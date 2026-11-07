@@ -22,7 +22,9 @@ def create_app(holder, static_dir: Path, db_path: str | None = None,
             threading.Timer(1.5, webbrowser.open, [open_url]).start()
         yield
 
-    app = FastAPI(title="voidlight-office", lifespan=lifespan)
+    # endpoint docs/redoc/openapi dimatikan: dashboard lokal gak butuh, gak perlu terekspos
+    app = FastAPI(title="voidlight-office", lifespan=lifespan,
+                  docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.get("/api/snapshot")
     def get_snapshot():

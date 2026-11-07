@@ -44,10 +44,18 @@ ini semua default jalan. Contoh ada di root repo.
 ## Cara kerja
 
 Collector thread baca db tiap 3 detik (WAL, read-only, aman selagi ZCode nulis),
-bangun snapshot JSON via fungsi murni, server FastAPI menyajikannya di
-`GET /api/snapshot`, frontend satu file HTML poll tiap 3 detik. Semua agregasi
-di collector; frontend dumb. Fail soft: db hilang/schema berubah/server mati
-hanya muncul banner, dashboard tidak crash.
+bangun snapshot JSON via fungsi murni, server FastAPI menyajikan API berikut:
+
+- `GET /api/snapshot` - agregasi sesi/room/usage terkini (utama, dipoll frontend)
+- `GET /api/content/tool/{call_id}` - isi input/output tool call, on-demand
+- `GET /api/content/turn/{turn_id}` - rantai pesan turn, on-demand
+- `GET /api/intelligence?scope=all|today` - ranking token session/turn/tool
+
+Frontend statis di `src/voffice/static/` (`index.html` + `styles.css` +
+`app.js`, vanilla, tanpa build step) poll snapshot tiap 3 detik; render hanya
+dijalankan ulang saat data benar-benar berubah. Semua agregasi di collector;
+frontend dumb. Fail soft: db hilang/schema berubah/server mati hanya muncul
+banner, dashboard tidak crash.
 
 ## Test
 
