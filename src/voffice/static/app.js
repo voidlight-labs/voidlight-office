@@ -3,7 +3,8 @@
 const COLORS = { kerja: "#4ade80", idle: "#fbbf24", quiet: "#6b7686", error: "#f87171" };
 const ROLE_COLORS = { Explore: "#4fd0f7", judge: "#a78bfa", "general-purpose": "#4ade80", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
-const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null, query: "" };
+const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null, query: "", lastLogAt: 0, prevUsage: null };
+let freshTimer = 0;  // timer stagger konten drawer saat baru kebuka
 const $ = (id) => document.getElementById(id);
 
 function esc(value) {
@@ -73,7 +74,8 @@ function sparkline(values, color) {
     const bh = Math.max(2, Math.round((v / max) * (h - 2)));
     const x = (i * (bw + gap)).toFixed(1);
     const last = i === n - 1;
-    bars += `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" fill="${color}" opacity="${last ? 1 : .42}"/>`;
+    // kelas sb = grow-in saat boot (delay per-bar inline), sb-last = kolom terakhir bernapas
+    bars += `<rect class="sb${last ? " sb-last" : ""}" style="animation-delay:${i * 14}ms" x="${x}" y="${h - bh}" width="${bw}" height="${bh}" fill="${color}" opacity="${last ? 1 : .42}"/>`;
   });
   return `<svg class="a-spark" width="${w}" height="${h}" aria-hidden="true">${bars}</svg>`;
 }
@@ -104,11 +106,15 @@ function agentRow(a) {
   const bar = a.target_budget > 0
     ? `<div class="bar"><div style="width:${Math.min(100, Math.round(a.target_used / a.target_budget * 100))}%;background:${c}"></div></div>`
     : "";
+  const live = a.status === "kerja" && a.current_tool
+    ? `<span class="c-live"><span class="caret">▊</span><span class="tool">${esc(humanizeTool(a.current_tool))}</span></span>`
+    : "";
   return `<div class="agent" onclick="openAgent('${esc(a.id)}')" title="${esc(a.objective || title)}">
     <span class="c-status"><i class="lamp ${a.status === "kerja" ? "on" : ""}" style="background:${c}"></i><span style="color:${c}">${esc(detail)}</span></span>
     <span class="c-tag">${esc((a.name || "??").slice(0, 2).toUpperCase())}</span>
     <span class="c-main">
       <span class="a-title"><span class="tt">${esc(title)}</span>${err}</span>
+      ${live}
       ${bar}
     </span>
     <span class="c-dur">${esc(fmtDuration(a.age_ms)) || "&mdash;"}</span>
@@ -131,7 +137,7 @@ function roomCard(r) {
         .join(" &middot; ");
       return `<div class="sub-block">
         <div class="sub-toggle ${open ? "open" : ""}" onclick="toggleExpand('${esc(a.id)}')">
-          <span class="tree">└─</span> ${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""} <span class="chev">${open ? "▾" : "▸"}</span>
+          <span class="tree">└─</span> ${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""} <span class="chev rot${open ? " open" : ""}">▸</span>
         </div>
         ${open ? `<div class="sub-rows">${a.subagents.map(subRow).join("")}</div>` : ""}
       </div>`;
@@ -219,11 +225,16 @@ function renderFeed() {
       .toLowerCase().includes(STATE.query));
   }
   countEl.innerHTML = rows.length ? `<i class="lamp on"></i>${rows.length}` : "";
+  // baris yang lebih muda dari render sebelumnya digarisbawahi flash cyan
+  const prevMax = STATE.lastLogAt || 0;
+  let maxAt = prevMax;
   $("feed-rows").innerHTML = rows.map((x) => {
     const c = STATUS_DOT[x.status] || "var(--gray)";
     const pulse = x.status === "running" ? " pulse-running" : "";
     const d = x.duration_ms != null ? `${Math.round(x.duration_ms / 1000)}s` : "";
-    return `<div class="log-line" title="${esc(x.room)}/${esc(x.agent)} &middot; ${esc(x.tool)}">
+    const isNew = prevMax > 0 && (x.at || 0) > prevMax;
+    if ((x.at || 0) > maxAt) maxAt = x.at || 0;
+    return `<div class="log-line${isNew ? " log-new" : ""}" title="${esc(x.room)}/${esc(x.agent)} &middot; ${esc(x.tool)}">
       <span class="l-time">${esc(fmtClock(x.at))}</span>
       <span class="dot${pulse}" style="background:${c}"></span>
       <span class="l-agent">${esc(x.agent)}</span>
@@ -233,19 +244,23 @@ function renderFeed() {
     </div>`;
   }).join("") || (STATE.query ? '<div class="log-empty">-- gak ada aktivitas yang cocok --</div>'
     : '<div class="log-empty">-- belum ada aktivitas --</div>');
+  STATE.lastLogAt = maxAt;
 }
 
 function renderTopbar() {
   const u = STATE.snap?.usage;
-  $("stat-working").innerHTML = u
-    ? `<i class="lamp ${u.working_count > 0 ? "on" : ""}"></i><b>${u.working_count}</b> kerja`
-    : "";
+  const prev = STATE.prevUsage;
   document.title = u && u.working_count > 0 ? `(${u.working_count}) Voidlight Office` : "Voidlight Office";
-  if (!u) { $("stat-tokens").innerHTML = ""; $("stat-models").innerHTML = ""; return; }
-  $("stat-tokens").innerHTML = `<b>${fmtTokens(u.today_total)}</b> tok today`;
+  if (!u) { $("stat-working").innerHTML = ""; $("stat-tokens").innerHTML = ""; $("stat-models").innerHTML = ""; STATE.prevUsage = null; return; }
+  // angka yang berubah dibiarin flash cyan sebentar, biar perubahan kebaca
+  const workChanged = prev != null && prev.working_count !== u.working_count;
+  $("stat-working").innerHTML = `<i class="lamp ${u.working_count > 0 ? "on" : ""}"></i><b class="${workChanged ? "flash" : ""}">${u.working_count}</b> kerja`;
+  const tokChanged = prev != null && prev.today_total !== u.today_total;
+  $("stat-tokens").innerHTML = `<b class="${tokChanged ? "flash" : ""}">${fmtTokens(u.today_total)}</b> tok today`;
   const models = Object.entries(u.per_model || {})
     .map(([m, n]) => `${esc(m)} ${fmtTokens(n)}`).join(" &middot; ");
   $("stat-models").innerHTML = models;
+  STATE.prevUsage = { working_count: u.working_count, today_total: u.today_total };
 }
 
 function renderBanner() {
@@ -423,6 +438,7 @@ function renderSlideover() {
   const el = $("slideover");
   const a = STATE.selected && findAgent(STATE.selected);
   if (!a) { el.className = "slideover"; el.innerHTML = ""; return; }
+  const wasOpen = el.classList.contains("open");
   const c = COLORS[a.status] || COLORS.quiet;
   const kv = (label, value, wide = false) =>
     `<div class="kv-row${wide ? " wide" : ""}"><span class="k">${label}</span><span class="lead"></span><span class="v">${value}</span></div>`;
@@ -437,7 +453,7 @@ function renderSlideover() {
       <div class="list-row acc-head" onclick="toggleContent('turn', '${esc(t.turn_id)}')">
         <span><i class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></i> <span class="mono">${new Date(t.at).toLocaleTimeString()}</span></span>
         <span class="lead"></span>
-        <span class="mono">${tok} <span class="chev">${open ? "▾" : "▸"}</span></span>
+        <span class="mono">${tok} <span class="chev rot${open ? " open" : ""}">▸</span></span>
       </div>
       ${open ? contentBlock(STATE.content[key]) : ""}
     </div>`;
@@ -453,7 +469,7 @@ function renderSlideover() {
       <div class="list-row acc-head" onclick="toggleContent('tool', '${esc(t.call_id)}')">
         <span>${esc(humanizeTool(t.tool))}</span>
         <span class="lead"></span>
-        <span class="mono">${meta} <span class="chev">${open ? "▾" : "▸"}</span></span>
+        <span class="mono">${meta} <span class="chev rot${open ? " open" : ""}">▸</span></span>
       </div>
       ${open ? contentBlock(STATE.content[key]) : ""}
     </div>`;
@@ -481,7 +497,12 @@ function renderSlideover() {
     <div class="list"><h4>Tool calls</h4>${tools || '<div class="log-empty">kosong</div>'}</div>
     <div class="list"><h4>Per model</h4>${models || '<div class="log-empty">kosong</div>'}</div>
     ${a.subagents && a.subagents.length ? `<div class="list"><h4>Subagents (${a.subagents.length})</h4><div class="sub-rows">${a.subagents.map(subRow).join("")}</div></div>` : ""}`;
-  el.className = "slideover open";
+  // stagger konten cuma pas drawer baru kebuka, bukan tiap re-render
+  el.className = "slideover open" + (wasOpen ? "" : " fresh");
+  if (!wasOpen) {
+    clearTimeout(freshTimer);
+    freshTimer = setTimeout(() => el.classList.remove("fresh"), 900);
+  }
 }
 
 function renderAge() { $("age").textContent = fmtAge(STATE.snap?.generated_at); }
@@ -529,6 +550,9 @@ document.addEventListener("keydown", (e) => {
     closeInsights();
   }
 });
+// boot sequence: entrance animation sekali di render pertama, lalu dimatikan
+document.body.classList.add("boot");
+setTimeout(() => document.body.classList.remove("boot"), 1600);
 try {
   STATE.filterRoom = localStorage.getItem("voffice.filterRoom") || null;
   STATE.expandedAgent = localStorage.getItem("voffice.expandedAgent") || null;
