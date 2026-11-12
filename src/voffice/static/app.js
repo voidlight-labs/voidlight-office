@@ -1,7 +1,7 @@
 "use strict";
 
-const COLORS = { kerja: "#34d399", idle: "#fbbf24", quiet: "#64748b", error: "#f87171" };
-const ROLE_COLORS = { Explore: "#38bdf8", judge: "#a78bfa", "general-purpose": "#34d399", agent: "#94a3b8" };
+const COLORS = { kerja: "#4ade80", idle: "#fbbf24", quiet: "#6b7686", error: "#f87171" };
+const ROLE_COLORS = { Explore: "#4fd0f7", judge: "#a78bfa", "general-purpose": "#4ade80", agent: "#94a3b8" };
 const STATUS_DOT = { ok: "var(--green)", error: "var(--red)", running: "var(--yellow)" };
 const STATE = { snap: null, ok: true, filterRoom: null, selected: null, expandedAgent: null, openContent: null, content: {}, insightsOpen: false, insightsScope: "all", insightsData: null, query: "" };
 const $ = (id) => document.getElementById(id);
@@ -37,13 +37,10 @@ function fmtDuration(ms) {
   return `${Math.floor(m / 60)}j ${m % 60}m`;
 }
 
-function relTime(ts, now) {
-  if (!ts || !now) return "";
-  const s = Math.max(0, Math.round((now - ts) / 1000));
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}j`;
+function fmtClock(ts) {
+  if (!ts) return "--:--:--";
+  const d = new Date(ts), p = (n) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 // mcp__plugin_playwright_playwright__browser_resize -> "playwright browser resize"; Bash -> "Bash"
@@ -65,29 +62,20 @@ function humanizeTool(tool) {
   return `${srv} ${action}`;
 }
 
-function roomHue(name) {
-  let h = 0;
-  for (const ch of String(name || "?")) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return (h < 30 || h > 325) ? 45 : h;  // merah eksklusif buat error, avatar room digeser ke oranye
-}
-
+// sparkline versi bar chart: kolom tipis, kolom terakhir solid
 function sparkline(values, color) {
   if (!values || values.length < 2) return "";
-  const w = 84, h = 26, max = Math.max(...values, 1);
-  const step = w / (values.length - 1);
-  const pts = values
-    .map((v, i) => `${(i * step).toFixed(1)},${(h - 3 - (v / max) * (h - 9)).toFixed(1)}`);
-  const id = "sg" + Math.random().toString(36).slice(2, 8);
-  const [lx, ly] = pts[pts.length - 1].split(",");
-  return `<svg class="a-spark" width="${w}" height="${h}" aria-hidden="true">
-    <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="${color}" stop-opacity=".26"/>
-      <stop offset="1" stop-color="${color}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <polygon points="${pts.join(" ")} ${w},${h} 0,${h}" fill="url(#${id})"/>
-    <polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-    <circle cx="${lx}" cy="${ly}" r="2.2" fill="${color}"/>
-  </svg>`;
+  const w = 84, h = 22, max = Math.max(...values, 1);
+  const n = values.length, bw = 3;
+  const gap = Math.max(1, (w - n * bw) / (n - 1));
+  let bars = "";
+  values.forEach((v, i) => {
+    const bh = Math.max(2, Math.round((v / max) * (h - 2)));
+    const x = (i * (bw + gap)).toFixed(1);
+    const last = i === n - 1;
+    bars += `<rect x="${x}" y="${h - bh}" width="${bw}" height="${bh}" fill="${color}" opacity="${last ? 1 : .42}"/>`;
+  });
+  return `<svg class="a-spark" width="${w}" height="${h}" aria-hidden="true">${bars}</svg>`;
 }
 
 function roleBadge(role) {
@@ -101,7 +89,7 @@ function roleBadge(role) {
 function subRow(s) {
   const c = COLORS[s.status] || COLORS.quiet;
   return `<div class="sub-row" onclick="openAgent('${esc(s.id)}')">
-    <span class="dot ${s.status === "kerja" ? "pulse-kerja" : ""}" style="background:${c}"></span>
+    <i class="dot" style="background:${c}"></i>
     <span class="who">${esc(s.name || s.short_name)}</span>
     ${roleBadge(s.role)}
     <span class="tok">${fmtTokens(s.tokens)} tok</span>
@@ -112,38 +100,27 @@ function agentRow(a) {
   const c = COLORS[a.status] || COLORS.quiet;
   const title = a.title || "tanpa judul";
   const err = a.error_count > 0 ? ` <span class="err-chip">${a.error_count} err</span>` : "";
-  const metaBits = [
-    `<span class="m-name">${esc(a.name || a.short_name || "?")}</span>`,
-    fmtDuration(a.age_ms) ? `<span>${esc(fmtDuration(a.age_ms))}</span>` : "",
-    a.status_detail ? `<span class="m-st">${esc(a.status_detail)}</span>` : "",
-    a.model ? `<span class="m-model">${esc(a.model)}</span>` : "",
-  ].filter(Boolean).join('<i class="sep"></i>');
-  const live = a.status === "kerja" && a.current_tool
-    ? `<div class="a-live"><span class="caret">&#9656;</span><span class="tool">${esc(humanizeTool(a.current_tool))}</span></div>`
-    : "";
+  const detail = a.status_detail || a.status || "";
   const bar = a.target_budget > 0
     ? `<div class="bar"><div style="width:${Math.min(100, Math.round(a.target_used / a.target_budget * 100))}%;background:${c}"></div></div>`
     : "";
-  return `<div class="agent" style="--st:${c}" onclick="openAgent('${esc(a.id)}')">
-    <div class="avatar ${a.status === "kerja" ? "pulse-kerja" : ""}" style="border-color:${c}a6;background:${c}1d">${esc((a.name || "?").slice(0, 2))}</div>
-    <div class="a-main">
-      <div class="a-title">${esc(title)}${err}</div>
-      <div class="a-meta">${metaBits}</div>
-      ${live}
+  return `<div class="agent" onclick="openAgent('${esc(a.id)}')" title="${esc(a.objective || title)}">
+    <span class="c-status"><i class="lamp ${a.status === "kerja" ? "on" : ""}" style="background:${c}"></i><span style="color:${c}">${esc(detail)}</span></span>
+    <span class="c-tag">${esc((a.name || "??").slice(0, 2).toUpperCase())}</span>
+    <span class="c-main">
+      <span class="a-title"><span class="tt">${esc(title)}</span>${err}</span>
       ${bar}
-    </div>
-    <div class="a-side">
-      <span class="a-tok">${fmtTokens(a.tokens)}</span>
-      <span class="a-tok-sub">tok &middot; ${a.tool_calls} tools</span>
-      ${sparkline(a.sparkline, c)}
-    </div>
+    </span>
+    <span class="c-dur">${esc(fmtDuration(a.age_ms)) || "&mdash;"}</span>
+    <span class="c-model">${a.model ? esc(a.model) : "&mdash;"}</span>
+    <span class="c-tok">${fmtTokens(a.tokens)} <small>tok</small></span>
+    <span class="c-tools">${a.tool_calls} <small>tools</small></span>
+    ${sparkline(a.sparkline, c)}
   </div>`;
 }
 
 function roomCard(r) {
   const active = STATE.filterRoom === r.name ? "active" : "";
-  const h = roomHue(r.name);
-  const avaStyle = `background:hsl(${h} 55% 55% / .16);border:1px solid hsl(${h} 55% 55% / .35);color:hsl(${h} 78% 72%)`;
   const agents = r.agents.map(agentRow).join("");
   const chips = r.agents
     .filter((a) => a.subagents.length)
@@ -152,49 +129,37 @@ function roomCard(r) {
       const roles = Object.entries(a.sub_roles || {})
         .map(([role, n]) => `<span style="color:${ROLE_COLORS[role] || "var(--muted)"}">${esc(role)} x${n}</span>`)
         .join(" &middot; ");
-      return `<div>
-        <span class="chip ${open ? "chip-open" : ""}" onclick="toggleExpand('${esc(a.id)}')">${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""}</span>
+      return `<div class="sub-block">
+        <div class="sub-toggle ${open ? "open" : ""}" onclick="toggleExpand('${esc(a.id)}')">
+          <span class="tree">└─</span> ${esc(a.name || a.short_name)} + ${a.subagents.length} sub${roles ? " &middot; " + roles : ""} <span class="chev">${open ? "▾" : "▸"}</span>
+        </div>
         ${open ? `<div class="sub-rows">${a.subagents.map(subRow).join("")}</div>` : ""}
       </div>`;
     })
     .join("");
-  return `<div class="room">
+  return `<section class="room ${active}">
     <div class="room-head ${active}" onclick="toggleFilter('${esc(r.name)}')">
-      <div class="room-ava" style="${avaStyle}">${esc((r.name || "?").slice(0, 1).toUpperCase())}</div>
-      <div class="room-title">
-        <div class="room-name">${esc(r.name)}</div>
-        ${r.objective ? `<div class="room-obj">${esc(r.objective)}</div>` : ""}
-      </div>
-      <div class="room-stats">
-        <div class="room-tok">${fmtTokens(r.tokens)} <span>tok</span></div>
-        <div class="room-count">${r.agents.length} agent</div>
-      </div>
+      <span class="room-mark">■</span>
+      <span class="room-name">${esc(r.name)}</span>
+      <span class="room-obj">${esc(r.objective ?? "")}</span>
+      <span class="room-meta"><b>${fmtTokens(r.tokens)}</b> tok &middot; ${r.agents.length} agent</span>
     </div>
-    <div class="agents">${agents || '<div class="room-empty">tidak ada agent aktif</div>'}</div>
+    <div class="agents">${agents || '<div class="room-empty">-- tidak ada agent aktif --</div>'}</div>
     ${chips ? `<div class="subs">${chips}</div>` : ""}
-  </div>`;
+  </section>`;
 }
 
-const EMPTY_ICON = `<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-  <rect x="3" y="4" width="18" height="13" rx="2.5"/><path d="M8.5 21h7M12 17.5v3.5" stroke-linecap="round"/>
-</svg>`;
-
 function skeletonCard() {
-  const agent = `<div class="agent">
-    <div class="skeleton skel-ava"></div>
-    <div class="a-main">
-      <div class="skeleton" style="height:12px;width:70%;margin-bottom:6px"></div>
-      <div class="skeleton" style="height:10px;width:45%"></div>
-    </div>
-    <div class="skeleton skel-spark"></div>
+  const row = `<div class="agent">
+    <span class="skeleton" style="width:118px;height:10px"></span>
+    <span class="skeleton" style="width:30px;height:22px"></span>
+    <span class="c-main"><span class="skeleton" style="height:11px;width:70%"></span></span>
+    <span class="skeleton" style="width:84px;height:20px"></span>
   </div>`;
-  return `<div class="room">
-    <div class="room-head">
-      <div class="skeleton" style="width:36px;height:36px;border-radius:11px"></div>
-      <div class="skeleton" style="height:15px;width:38%"></div>
-    </div>
-    ${agent}${agent}${agent}
-  </div>`;
+  return `<section class="room">
+    <div class="skeleton skel-line" style="width:34%"></div>
+    ${row}${row}${row}
+  </section>`;
 }
 
 function agentMatches(a, q) {
@@ -208,7 +173,7 @@ function renderRooms() {
   if (!rooms.length) {
     const meta = STATE.snap.meta;
     const msg = meta && (meta.errors || []).length ? meta.errors.join("; ") : "belum ada aktivitas";
-    $("rooms").innerHTML = `<div class="empty">${EMPTY_ICON}
+    $("rooms").innerHTML = `<div class="empty"><div class="empty-glyph">[ no signal ]</div>
       <div class="empty-title">${esc(msg)}</div>
       <div class="empty-sub">mulai sesi ZCode, dashboard bakal ngisi sendiri</div></div>`;
     return;
@@ -231,7 +196,7 @@ function renderRooms() {
       .filter((r) => r.name.toLowerCase().includes(q) || r.agents.length > 0);
   }
   if (!list.length) {
-    $("rooms").innerHTML = `<div class="empty">
+    $("rooms").innerHTML = `<div class="empty"><div class="empty-glyph">[ no match ]</div>
       <div class="empty-title">gak ada yang cocok buat "${esc(STATE.query)}"</div></div>`;
     return;
   }
@@ -239,12 +204,12 @@ function renderRooms() {
 }
 
 function renderFeed() {
-  $("feed-title").textContent = STATE.filterRoom ? `Activity: ${STATE.filterRoom}` : "Activity";
+  $("feed-title").textContent = STATE.filterRoom ? `Event Log · ${STATE.filterRoom}` : "Event Log";
   const countEl = $("feed-count");
   if (!STATE.snap) {
     countEl.textContent = "";
     $("feed-rows").innerHTML = Array.from({ length: 6 },
-      () => '<div class="feed-row"><div class="skeleton" style="height:10px;width:85%"></div></div>').join("");
+      () => '<div class="log-line"><div class="skeleton" style="height:10px;width:85%"></div></div>').join("");
     return;
   }
   let rows = STATE.snap.activity
@@ -253,28 +218,27 @@ function renderFeed() {
     rows = rows.filter((x) => `${x.room}/${x.agent} ${x.tool} ${humanizeTool(x.tool)}`
       .toLowerCase().includes(STATE.query));
   }
-  countEl.innerHTML = rows.length ? `<i class="live on"></i>${rows.length}` : "";
-  const now = STATE.snap.generated_at;
+  countEl.innerHTML = rows.length ? `<i class="lamp on"></i>${rows.length}` : "";
   $("feed-rows").innerHTML = rows.map((x) => {
     const c = STATUS_DOT[x.status] || "var(--gray)";
     const pulse = x.status === "running" ? " pulse-running" : "";
     const d = x.duration_ms != null ? `${Math.round(x.duration_ms / 1000)}s` : "";
-    return `<div class="feed-row" title="${esc(x.room)}/${esc(x.agent)} &middot; ${esc(x.tool)}">
-      <span class="feed-time">${esc(relTime(x.at, now))}</span>
+    return `<div class="log-line" title="${esc(x.room)}/${esc(x.agent)} &middot; ${esc(x.tool)}">
+      <span class="l-time">${esc(fmtClock(x.at))}</span>
       <span class="dot${pulse}" style="background:${c}"></span>
-      <span class="who">${esc(x.agent)}</span>
-      <span class="froom">${esc(x.room)}</span>
-      <span class="ftool">${esc(humanizeTool(x.tool))}</span>
-      <span class="fdur">${d}</span>
+      <span class="l-agent">${esc(x.agent)}</span>
+      <span class="l-room">${esc(x.room)}</span>
+      <span class="l-tool">${esc(humanizeTool(x.tool))}</span>
+      <span class="l-dur">${d}</span>
     </div>`;
-  }).join("") || (STATE.query ? '<div class="feed-empty">gak ada aktivitas yang cocok</div>'
-    : '<div class="feed-empty">belum ada aktivitas</div>');
+  }).join("") || (STATE.query ? '<div class="log-empty">-- gak ada aktivitas yang cocok --</div>'
+    : '<div class="log-empty">-- belum ada aktivitas --</div>');
 }
 
 function renderTopbar() {
   const u = STATE.snap?.usage;
   $("stat-working").innerHTML = u
-    ? `<i class="live ${u.working_count > 0 ? "on" : ""}"></i><b>${u.working_count}</b> agent kerja`
+    ? `<i class="lamp ${u.working_count > 0 ? "on" : ""}"></i><b>${u.working_count}</b> kerja`
     : "";
   document.title = u && u.working_count > 0 ? `(${u.working_count}) Voidlight Office` : "Voidlight Office";
   if (!u) { $("stat-tokens").innerHTML = ""; $("stat-models").innerHTML = ""; return; }
@@ -289,12 +253,12 @@ function renderBanner() {
   const meta = STATE.snap?.meta;
   if (meta && meta.partial) {
     b.className = "banner warn show";
-    b.textContent = "data parsial: " + (meta.errors || []).join("; ");
+    b.textContent = "! data parsial: " + (meta.errors || []).join("; ");
   } else if (!STATE.ok) {
     b.className = "banner err show";
     b.textContent = STATE.snap
-      ? "server tidak terjangkau, menampilkan data terakhir"
-      : "menunggu server /api/snapshot...";
+      ? "! server tidak terjangkau, menampilkan data terakhir"
+      : "! menunggu server /api/snapshot...";
   } else {
     b.className = "banner";
   }
@@ -371,8 +335,8 @@ function breakdown(d) {
 
 function rankRows(rows, cols) {
   return rows.map((r, i) => `<div class="rank-row">
-    <div class="bar-bg"></div><div class="bar-fill" style="width:${r.share || 0}%"></div>
-    <span class="rank-no">${i + 1}</span>
+    <div class="bar-fill" style="width:${r.share || 0}%"></div>
+    <span class="rank-no">${String(i + 1).padStart(2, "0")}</span>
     ${cols(r)}
   </div>`).join("") || '<div class="empty">belum ada data</div>';
 }
@@ -387,7 +351,7 @@ function renderInsights() {
   else if (d.error) body = `<div class="empty">${esc(d.error)}</div>`;
   else {
     const sessions = rankRows(d.sessions || [], (r) =>
-      `<span class="who">${esc(r.name)}</span><span>${esc(r.room)}${r.title ? " · " + esc(r.title) : ""}</span>
+      `<span class="who">${esc(r.name)}</span><span class="detail">${esc(r.room)}${r.title ? " · " + esc(r.title) : ""}</span>
        <span class="detail">${breakdown(r)}</span><span class="total">${fmtTokens(r.total)} tok</span>`);
     const turns = rankRows(d.turns || [], (r) =>
       `<span class="who">${esc(r.name)}</span><span>${new Date(r.at).toLocaleString()}</span>
@@ -452,7 +416,7 @@ function contentBlock(data) {
     return `<div class="content-label">${esc(e.kind)}${e.role ? " · " + esc(e.role) : ""}</div>
       <pre class="pre">${esc(e.content ?? "")}</pre>`;
   }).join("");
-  return `<div class="content">${entries || '<div class="kv wide">kosong</div>'}</div>`;
+  return `<div class="content">${entries || '<div class="log-empty">kosong</div>'}</div>`;
 }
 
 function renderSlideover() {
@@ -461,18 +425,19 @@ function renderSlideover() {
   if (!a) { el.className = "slideover"; el.innerHTML = ""; return; }
   const c = COLORS[a.status] || COLORS.quiet;
   const kv = (label, value, wide = false) =>
-    `<div class="kv${wide ? " wide" : ""}"><span class="kv-label">${label}</span><b>${value}</b></div>`;
+    `<div class="kv-row${wide ? " wide" : ""}"><span class="k">${label}</span><span class="lead"></span><span class="v">${value}</span></div>`;
   const turns = (a.turns || []).slice().reverse().map((t) => {
     const tok = `<span class="mono">${fmtTokens(t.output_tokens)} tok</span>`;
     if (!t.turn_id) {
-      return `<div class="list-row"><span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span>${tok}</div>`;
+      return `<div class="list-row"><span><i class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></i> <span class="mono">${new Date(t.at).toLocaleTimeString()}</span></span><span class="lead"></span>${tok}</div>`;
     }
     const key = "turn:" + t.turn_id;
     const open = STATE.openContent === key;
     return `<div>
       <div class="list-row acc-head" onclick="toggleContent('turn', '${esc(t.turn_id)}')">
-        <span><span class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></span> ${new Date(t.at).toLocaleTimeString()}</span>
-        <span>${tok} <span class="chev">${open ? "▾" : "▸"}</span></span>
+        <span><i class="dot" style="background:${STATUS_DOT[t.status] || "var(--gray)"}"></i> <span class="mono">${new Date(t.at).toLocaleTimeString()}</span></span>
+        <span class="lead"></span>
+        <span class="mono">${tok} <span class="chev">${open ? "▾" : "▸"}</span></span>
       </div>
       ${open ? contentBlock(STATE.content[key]) : ""}
     </div>`;
@@ -480,42 +445,41 @@ function renderSlideover() {
   const tools = (a.tools || []).slice().reverse().map((t) => {
     const meta = `<span class="mono">${t.status}${t.duration_ms != null ? " · " + Math.round(t.duration_ms / 1000) + "s" : ""}</span>`;
     if (!t.call_id) {
-      return `<div class="list-row"><span>${esc(t.tool)}</span>${meta}</div>`;
+      return `<div class="list-row"><span>${esc(humanizeTool(t.tool))}</span><span class="lead"></span>${meta}</div>`;
     }
     const key = "tool:" + t.call_id;
     const open = STATE.openContent === key;
     return `<div>
       <div class="list-row acc-head" onclick="toggleContent('tool', '${esc(t.call_id)}')">
         <span>${esc(humanizeTool(t.tool))}</span>
-        <span>${meta} <span class="chev">${open ? "▾" : "▸"}</span></span>
+        <span class="lead"></span>
+        <span class="mono">${meta} <span class="chev">${open ? "▾" : "▸"}</span></span>
       </div>
       ${open ? contentBlock(STATE.content[key]) : ""}
     </div>`;
   }).join("");
   const models = Object.entries(a.models || {})
-    .map(([m, n]) => `<div class="list-row"><span>${esc(m)}</span><span class="mono">${fmtTokens(n)} tok</span></div>`).join("");
+    .map(([m, n]) => `<div class="list-row"><span>${esc(m)}</span><span class="lead"></span><span class="mono">${fmtTokens(n)} tok</span></div>`).join("");
   const pct = a.target_budget > 0 ? Math.min(100, Math.round(a.target_used / a.target_budget * 100)) : null;
   el.innerHTML = `
-    <button class="close" onclick="closeAgent()">&times;</button>
-    <h2><span class="avatar" style="border-color:${c}a6;background:${c}1d">${esc((a.name || "?").slice(0, 2))}</span>${esc(a.title || "tanpa judul")}</h2>
+    <div class="so-label">// agent detail</div>
+    <h2><span class="c-tag" style="color:${c};border-color:${c}66">${esc((a.name || "??").slice(0, 2).toUpperCase())}</span>${esc(a.title || "tanpa judul")}</h2>
     <div class="so-sub">
       ${roleBadge(a.role)}
-      <span class="dot" style="background:${c}"></span>
+      <i class="dot" style="background:${c}"></i>
       <span>${esc(a.status_detail)}${a.age_ms != null ? ` &middot; umur <b>${esc(fmtDuration(a.age_ms))}</b>` : ""}</span>
     </div>
-    <div class="kv-grid">
-      ${kv("agent", esc(a.name || a.short_name))}
-      ${kv("model", esc(a.model ?? "-"))}
-      ${kv("token total", `${fmtTokens(a.tokens)} tok`)}
-      ${kv("tool calls", String(a.tool_calls))}
-      ${a.error_count > 0 ? `<div class="kv wide"><span class="kv-label">error</span><b class="err-text">${a.error_count} error tercatat</b></div>` : ""}
-      ${a.objective ? `<div class="kv wide"><span class="kv-label">objective</span><b>${esc(a.objective)}</b></div>` : ""}
-      ${pct != null ? `<div class="kv wide"><span class="kv-label">budget target</span><b>${fmtTokens(a.target_used)} / ${fmtTokens(a.target_budget)} tok (${pct}%)</b>
-        <div class="bar" style="margin-top:7px"><div style="width:${pct}%;background:${c}"></div></div></div>` : ""}
-    </div>
-    <div class="list"><h4>Turn terakhir</h4>${turns || '<div class="feed-empty">kosong</div>'}</div>
-    <div class="list"><h4>Tool calls</h4>${tools || '<div class="feed-empty">kosong</div>'}</div>
-    <div class="list"><h4>Per model</h4>${models || '<div class="feed-empty">kosong</div>'}</div>
+    ${kv("agent", esc(a.name || a.short_name))}
+    ${kv("model", esc(a.model ?? "-"))}
+    ${kv("token total", `${fmtTokens(a.tokens)} tok`)}
+    ${kv("tool calls", String(a.tool_calls))}
+    ${a.error_count > 0 ? `<div class="kv-row wide"><span class="k">error</span><span class="lead"></span><span class="v err-text">${a.error_count} error tercatat</span></div>` : ""}
+    ${a.objective ? `<div class="kv-row wide"><span class="k">objective</span><span class="lead"></span><span class="v">${esc(a.objective)}</span></div>` : ""}
+    ${pct != null ? `<div class="kv-row wide"><span class="k">budget target</span><span class="lead"></span><span class="v">${fmtTokens(a.target_used)} / ${fmtTokens(a.target_budget)} tok (${pct}%)</span></div>
+      <div class="bar" style="max-width:none"><div style="width:${pct}%;background:${c}"></div></div>` : ""}
+    <div class="list"><h4>Turn terakhir</h4>${turns || '<div class="log-empty">kosong</div>'}</div>
+    <div class="list"><h4>Tool calls</h4>${tools || '<div class="log-empty">kosong</div>'}</div>
+    <div class="list"><h4>Per model</h4>${models || '<div class="log-empty">kosong</div>'}</div>
     ${a.subagents && a.subagents.length ? `<div class="list"><h4>Subagents (${a.subagents.length})</h4><div class="sub-rows">${a.subagents.map(subRow).join("")}</div></div>` : ""}`;
   el.className = "slideover open";
 }
